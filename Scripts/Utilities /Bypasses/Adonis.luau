@@ -1,5 +1,5 @@
 if BYPASSED_ADONIS then return end
-getgenv().ADONIS_BYPASS_DEBUG_MODE = true
+getgenv().ADONIS_BYPASS_DEBUG_MODE = falsw
 
 local ScriptContext = game:service("ScriptContext")
 local LocalPlayer = game:service("Players").LocalPlayer
