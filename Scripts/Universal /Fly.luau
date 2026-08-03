@@ -1,6 +1,3 @@
---[[_G.getgenv = _G
-_G.gethui = game.Players.LocalPlayer.PlayerGui
-_G.cloneref = function(...) return ... end]]
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --// Script - Universal Fly \\--
