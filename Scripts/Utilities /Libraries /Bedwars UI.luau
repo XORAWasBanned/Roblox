@@ -1177,7 +1177,20 @@ function Library.New(Options)
 
 			ModuleCount = ModuleCount + 1
 
-			local ModuleAPI = {
+			-- Built-in support for .Value and .SettingName.Value indexing via Metatables
+			local SettingsProxy = setmetatable({}, {
+				__index = function(_, SName)
+					if SettingControls[SName] then
+						return {
+							Value = SettingControls[SName].Get(),
+							Get = function() return SettingControls[SName].Get() end,
+							Set = function(Val, Skip) SettingControls[SName].Set(Val, Skip) end
+						}
+					end
+				end
+			})
+
+			local ModuleAPI = setmetatable({
 				IsEnabled = IsEnabled,
 				SetEnabled = SetModuleState,
 				GetSetting = function(SName)
@@ -1190,7 +1203,20 @@ function Library.New(Options)
 				end,
 				Get = IsEnabled,
 				Set = function(Val, SkipCallback) SetModuleState(Val, SkipCallback) end
-			}
+			}, {
+				__index = function(_, k)
+					if k == "Value" then
+						return IsEnabled()
+					elseif SettingsProxy[k] then
+						return SettingsProxy[k]
+					end
+				end,
+				__newindex = function(_, k, v)
+					if k == "Value" then
+						SetModuleState(v)
+					end
+				end
+			})
 
 			if ConfigFlag then
 				FlagRegistry[ConfigFlag] = ModuleAPI
@@ -1410,11 +1436,6 @@ function Library.New(Options)
 		end
 	end
 
-	-- Two-pass load: settings load silently first, then "_Enabled" toggles load
-	-- last with SkipCallback tied to their saved value. This makes modules like
-	-- Auto Save actually spawn their thread when saved as true, while modules
-	-- saved as false stay fully silent and don't run their off-state callback
-	-- (which would otherwise touch things like Lighting even though disabled).
 	local function LoadConfigFromFile(ConfigName)
 		if not ConfigName or ConfigName == "" then return end
 		local FilePath = ConfigFolder .. "/" .. ConfigName .. ".json"
@@ -1664,6 +1685,5 @@ function Library.New(Options)
 		GetAvailableConfigs = GetAvailableConfigs,
 	}
 end
-
 
 return Library
