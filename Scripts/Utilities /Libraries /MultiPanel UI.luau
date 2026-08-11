@@ -1,4 +1,3 @@
---// AI dump
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -67,6 +66,91 @@ local function MakeDraggable(DragHandle, TargetFrame, OnClick)
 	end)
 end
 
+-- Device-independent chevron icon made from UI frames.
+-- This avoids font/emoji boxes and works consistently on mobile + desktop.
+local function CreateChevron(Parent, Size, Thickness)
+	Size = Size or 10
+	Thickness = Thickness or 2
+
+	local Holder = Instance.new("Frame")
+	Holder.Name = "Chevron"
+	Holder.Size = UDim2.new(0, Size, 0, Size)
+	Holder.BackgroundTransparency = 1
+	Holder.AnchorPoint = Vector2.new(0.5, 0.5)
+	Holder.Active = false
+	Holder.Parent = Parent
+
+	local Left = Instance.new("Frame")
+	Left.Name = "Left"
+	Left.Size = UDim2.new(0, math.ceil(Size * 0.55), 0, Thickness)
+	Left.AnchorPoint = Vector2.new(0, 0.5)
+	Left.Position = UDim2.new(0, 0, 0.5, 0)
+	Left.BackgroundColor3 = Color3.fromRGB(190, 190, 195)
+	Left.BorderSizePixel = 0
+	Left.Rotation = 45
+	Left.Active = false
+	Left.Parent = Holder
+
+	local Right = Instance.new("Frame")
+	Right.Name = "Right"
+	Right.Size = UDim2.new(0, math.ceil(Size * 0.55), 0, Thickness)
+	Right.AnchorPoint = Vector2.new(1, 0.5)
+	Right.Position = UDim2.new(1, 0, 0.5, 0)
+	Right.BackgroundColor3 = Color3.fromRGB(190, 190, 195)
+	Right.BorderSizePixel = 0
+	Right.Rotation = -45
+	Right.Active = false
+	Right.Parent = Holder
+
+	local API = {}
+	local function SetDirection(Direction)
+		-- Down = V, Up = ^
+		if Direction == "up" then
+			Left.Rotation = -45
+			Right.Rotation = 45
+		else
+			Left.Rotation = 45
+			Right.Rotation = -45
+		end
+	end
+	API.Holder = Holder
+	API.SetDirection = SetDirection
+	SetDirection("down")
+	return API
+end
+
+local function CreateCheckIcon(Parent, Size)
+	Size = Size or 11
+	local Holder = Instance.new("Frame")
+	Holder.Name = "Check"
+	Holder.Size = UDim2.new(0, Size, 0, Size)
+	Holder.AnchorPoint = Vector2.new(1, 0.5)
+	Holder.Position = UDim2.new(1, -6, 0.5, 0)
+	Holder.BackgroundTransparency = 1
+	Holder.Active = false
+	Holder.Visible = false
+	Holder.Parent = Parent
+
+	local Short = Instance.new("Frame")
+	Short.Size = UDim2.new(0, math.max(3, math.floor(Size * 0.38)), 0, 2)
+	Short.Position = UDim2.new(0, 0, 0.5, 1)
+	Short.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Short.BorderSizePixel = 0
+	Short.Rotation = 45
+	Short.Parent = Holder
+
+	local Long = Instance.new("Frame")
+	Long.Size = UDim2.new(0, math.max(5, math.floor(Size * 0.62)), 0, 2)
+	Long.AnchorPoint = Vector2.new(1, 0)
+	Long.Position = UDim2.new(1, 0, 0.35, 0)
+	Long.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Long.BorderSizePixel = 0
+	Long.Rotation = -45
+	Long.Parent = Holder
+
+	return Holder
+end
+
 local Library = {}
 
 function Library.New(Options)
@@ -85,14 +169,17 @@ function Library.New(Options)
 		BackgroundColor = Options.BackgroundColor or Color3.fromRGB(15, 15, 18),
 		HeaderColor = Options.HeaderColor or Color3.fromRGB(24, 24, 28),
 		PanelWidth = Options.CategoryWidth or Options.PanelWidth or 165,
-		CategoryWidth = Options.CategoryWidth or Options.PanelWidth or 165,
 		CategoryGap = Options.CategoryGap or 12,
 		HeaderHeight = Options.HeaderHeight or 34,
+		DropdownWidth = Options.DropdownWidth or 70,
+		DropdownMaxVisible = Options.DropdownMaxVisible or 7,
 		ModuleHeight = Options.ModuleHeight or 28,
 		TweenTime = Options.TweenTime or 0.2,
+		CategoryTop = Options.CategoryTop or (IsTouchDevice and 56 or 58),
+		CategoryLeft = Options.CategoryLeft or 15,
+		ToggleTop = Options.ToggleTop or (IsTouchDevice and 10 or 12),
+		ToggleRight = Options.ToggleRight or 15,
 		ShowText = Options.Name or "Custom",
-		DropdownMaxVisible = Options.DropdownMaxVisible or 7,
-		DropdownWidth = Options.DropdownWidth or 78,
 	}
 
 	local FlagRegistry = {}
@@ -331,18 +418,17 @@ function Library.New(Options)
 	local function CreateDropdown(Parent, Label, Options, Default, Callback, OnResizeRequested, Multi)
 		Options = Options or {}
 		Multi = Multi == true
-	
+
 		local Frame = Instance.new("Frame")
 		Frame.Size = UDim2.new(1, 0, 0, 26)
 		Frame.BackgroundTransparency = 1
-		Frame.ClipsDescendants = false
 		Frame.Parent = Parent
 
 		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(1, -Config.DropdownWidth - 5, 0, 26)
+		TextLbl.Size = UDim2.new(1, -(Config.DropdownWidth + 5), 0, 26)
 		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = Label
-		TextLbl.TextColor3 = Color3.fromRGB(205, 205, 215)
+		TextLbl.Text = tostring(Label or "Dropdown")
+		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 		TextLbl.Font = Enum.Font.GothamMedium
 		TextLbl.TextSize = 11
 		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -350,250 +436,203 @@ function Library.New(Options)
 		TextLbl.Parent = Frame
 
 		local DropBtn = Instance.new("TextButton")
-		DropBtn.Size = UDim2.new(0, Config.DropdownWidth, 0, 20)
-		DropBtn.Position = UDim2.new(1, -Config.DropdownWidth, 0, 3)
+		DropBtn.Size = UDim2.new(0, Config.DropdownWidth, 0, 18)
+		DropBtn.Position = UDim2.new(1, -Config.DropdownWidth, 0, 4)
 		DropBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-		DropBtn.TextColor3 = Color3.fromRGB(245, 245, 250)
+		DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 		DropBtn.Font = Enum.Font.GothamMedium
-		DropBtn.TextSize = 10
-		DropBtn.AutoButtonColor = false
+		DropBtn.TextSize = 9
 		DropBtn.TextTruncate = Enum.TextTruncate.AtEnd
+		DropBtn.AutoButtonColor = false
+		DropBtn.Selectable = false
+		local DropPad = Instance.new("UIPadding")
+		DropPad.PaddingRight = UDim.new(0, 16)
+		DropPad.PaddingLeft = UDim.new(0, 5)
+		DropPad.Parent = DropBtn
 		DropBtn.Parent = Frame
-		Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 5)
-	
-		local Stroke = Instance.new("UIStroke")
-		Stroke.Color = Color3.fromRGB(48, 48, 60)
-		Stroke.Thickness = 1
-		Stroke.Parent = DropBtn
+		Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 4)
 
-		local Arrow = Instance.new("TextLabel")
-		Arrow.Size = UDim2.new(0, 14, 1, 0)
-		Arrow.Position = UDim2.new(1, -16, 0, 0)
-		Arrow.BackgroundTransparency = 1
-		Arrow.Text = "⌄"
-		Arrow.TextColor3 = Color3.fromRGB(145, 145, 160)
-		Arrow.Font = Enum.Font.GothamBold
-		Arrow.TextSize = 12
-		Arrow.Parent = DropBtn
+		local DropChevron = CreateChevron(DropBtn, 9, 2)
+		DropChevron.Holder.ZIndex = 3
+		DropChevron.Holder.Position = UDim2.new(1, -8, 0.5, 0)
 
-		local Selected = {}
-		local SelectedOption = nil
 		local IsOpen = false
+		local SelectedOption = nil
+		local Selected = {}
 
-		local Container = Instance.new("Frame")
-		Container.Size = UDim2.new(1, 0, 0, 0)
-		Container.Position = UDim2.new(0, 0, 0, 28)
-		Container.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
-		Container.Visible = false
-		Container.ClipsDescendants = true
-		Container.ZIndex = 20
-		Container.Parent = Frame
-		Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 6)
-
-		local ContainerStroke = Instance.new("UIStroke")
-		ContainerStroke.Color = Color3.fromRGB(45, 45, 58)
-		ContainerStroke.Thickness = 1
-		ContainerStroke.Parent = Container
-
-		local SearchBox = Instance.new("TextBox")
-		SearchBox.Size = UDim2.new(1, -8, 0, 24)
-		SearchBox.Position = UDim2.new(0, 4, 0, 4)
-		SearchBox.BackgroundColor3 = Color3.fromRGB(25, 25, 31)
-		SearchBox.TextColor3 = Color3.fromRGB(235, 235, 240)
-		SearchBox.PlaceholderText = "Search..."
-		SearchBox.PlaceholderColor3 = Color3.fromRGB(115, 115, 130)
-		SearchBox.Font = Enum.Font.Gotham
-		SearchBox.TextSize = 10
-		SearchBox.ClearTextOnFocus = false
-		SearchBox.Visible = #Options > Config.DropdownMaxVisible
-		SearchBox.ZIndex = 21
-		SearchBox.Parent = Container
-		Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 4)
-
-		local ListHolder = Instance.new("ScrollingFrame")
-		ListHolder.Size = UDim2.new(1, -8, 1, SearchBox.Visible and -32 or -8)
-		ListHolder.Position = UDim2.new(0, 4, 0, SearchBox.Visible and 32 or 4)
-		ListHolder.BackgroundTransparency = 1
-		ListHolder.BorderSizePixel = 0
-		ListHolder.ScrollBarThickness = 3
-		ListHolder.ScrollBarImageColor3 = Config.ThemeColor
-		ListHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-		ListHolder.ZIndex = 21
-		ListHolder.Parent = Container
-
-		local List = Instance.new("UIListLayout")
-		List.SortOrder = Enum.SortOrder.LayoutOrder
-		List.Padding = UDim.new(0, 3)
-		List.Parent = ListHolder
-
-		local function Contains(Value)
+		local function IsSelected(Value)
 			for _, Item in ipairs(Selected) do
 				if Item == Value then return true end
 			end
 			return false
 		end
 
+		local function SetSelected(Value, State)
+			for Index, Item in ipairs(Selected) do
+				if Item == Value then
+					if not State then table.remove(Selected, Index) end
+					return
+				end
+			end
+			if State then table.insert(Selected, Value) end
+		end
+
 		local function CopySelected()
 			local Result = {}
-			for _, Item in ipairs(Selected) do Result[#Result + 1] = Item end
+			for _, Value in ipairs(Selected) do table.insert(Result, Value) end
 			return Result
 		end
 
-		local function SetSingle(Value)
-			SelectedOption = Value
-			Selected = Value ~= nil and {Value} or {}
-		end
-
-		if Multi then
-			if type(Default) == "table" then
-				for _, Value in ipairs(Default) do Selected[#Selected + 1] = Value end
-			elseif Default ~= nil then
-				Selected[1] = Default
-			end
-		else
-			SetSingle(Default or Options[1])
-		end
-
 		local function GetDisplayText()
-			if Multi then
-				if #Selected == 0 then return "None" end
-				if #Selected == 1 then return tostring(Selected[1]) end
-				return tostring(#Selected) .. " selected"
+			if not Multi then
+				return tostring(SelectedOption or "None")
 			end
-			return tostring(SelectedOption or "None")
+			if #Selected == 0 then return "None" end
+			if #Selected == 1 then return tostring(Selected[1]) end
+			return tostring(#Selected) .. " selected"
 		end
 
-		local function RefreshButton()
+		local function ApplyDefault(Value)
+			SelectedOption = nil
+			Selected = {}
+			if Multi then
+				if type(Value) == "table" then
+					for _, Item in ipairs(Value) do SetSelected(Item, true) end
+				elseif Value ~= nil then
+					SetSelected(Value, true)
+				end
+			else
+				if type(Value) == "table" then Value = Value[1] end
+				SelectedOption = Value or Options[1] or "None"
+			end
 			DropBtn.Text = GetDisplayText()
 		end
-		RefreshButton()
 
-		local function Resize()
-			local Count = 0
-			for _, Child in ipairs(ListHolder:GetChildren()) do
-				if Child:IsA("TextButton") and Child.Visible then Count += 1 end
-			end
-			local VisibleCount = math.min(math.max(Count, 1), Config.DropdownMaxVisible)
-			local TargetH = IsOpen and (VisibleCount * 21 + (SearchBox.Visible and 34 or 10)) or 0
+		ApplyDefault(Default)
+
+		local Container = Instance.new("Frame")
+		Container.Size = UDim2.new(1, 0, 0, 0)
+		Container.Position = UDim2.new(0, 0, 0, 28)
+		Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+		Container.Visible = false
+		Container.ClipsDescendants = true
+		Container.Parent = Frame
+		Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 4)
+
+		local ContainerPad = Instance.new("UIPadding")
+		ContainerPad.PaddingTop = UDim.new(0, 4)
+		ContainerPad.PaddingBottom = UDim.new(0, 4)
+		ContainerPad.PaddingLeft = UDim.new(0, 4)
+		ContainerPad.PaddingRight = UDim.new(0, 4)
+		ContainerPad.Parent = Container
+
+		local List = Instance.new("UIListLayout")
+		List.SortOrder = Enum.SortOrder.LayoutOrder
+		List.Padding = UDim.new(0, 3)
+		List.Parent = Container
+
+		local function GetVisibleCount()
+			return math.min(#Options, Config.DropdownMaxVisible)
+		end
+
+		local function UpdateOpenSize()
+			local TargetH = IsOpen and (GetVisibleCount() * 21 + 8) or 0
 			Container.Size = UDim2.new(1, 0, 0, TargetH)
 			Frame.Size = UDim2.new(1, 0, 0, IsOpen and (28 + TargetH + 4) or 26)
-			ListHolder.CanvasSize = UDim2.new(0, 0, 0, List.AbsoluteContentSize.Y + 4)
 			if OnResizeRequested then OnResizeRequested() end
 		end
 
-		local function FireCallback()
-			if not Callback then return end
-			if Multi then Callback(CopySelected()) else Callback(SelectedOption) end
-		end
-
 		local function RefreshOptions()
-			for _, Child in ipairs(ListHolder:GetChildren()) do
+			for _, Child in ipairs(Container:GetChildren()) do
 				if Child:IsA("TextButton") then Child:Destroy() end
 			end
+
 			for Index, Opt in ipairs(Options) do
+				local Value = Opt
 				local OptBtn = Instance.new("TextButton")
-				OptBtn.Name = "Option_" .. Index
-				OptBtn.Size = UDim2.new(1, -2, 0, 18)
-				OptBtn.BackgroundColor3 = Contains(Opt) and Config.ThemeColor or Color3.fromRGB(28, 28, 35)
-				OptBtn.BackgroundTransparency = Contains(Opt) and 0.15 or 0
-				OptBtn.Text = Multi and ((Contains(Opt) and "✓  " or "    ") .. tostring(Opt)) or tostring(Opt)
-				OptBtn.TextColor3 = Contains(Opt) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(205, 205, 215)
+				OptBtn.Size = UDim2.new(1, 0, 0, 18)
+				OptBtn.LayoutOrder = Index
+				OptBtn.BackgroundColor3 = IsSelected(Value) and Config.ThemeColor or Color3.fromRGB(28, 28, 35)
+				OptBtn.BackgroundTransparency = IsSelected(Value) and 0.15 or 0
+				OptBtn.Text = tostring(Value)
+				OptBtn.TextColor3 = IsSelected(Value) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
 				OptBtn.Font = Enum.Font.Gotham
 				OptBtn.TextSize = 10
 				OptBtn.TextXAlignment = Enum.TextXAlignment.Left
-				OptBtn.TextTruncate = Enum.TextTruncate.AtEnd
 				OptBtn.AutoButtonColor = false
-				OptBtn.ZIndex = 22
-				OptBtn.Parent = ListHolder
-				Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
+				OptBtn.Selectable = false
+				OptBtn.Parent = Container
+				Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 3)
+
+				local CheckIcon = CreateCheckIcon(OptBtn, 10)
+				CheckIcon.Visible = Multi and IsSelected(Value)
 
 				OptBtn.MouseButton1Click:Connect(function()
 					if Multi then
-						local Found = nil
-						for I, Value in ipairs(Selected) do if Value == Opt then Found = I break end end
-						if Found then table.remove(Selected, Found) else table.insert(Selected, Opt) end
+						SetSelected(Value, not IsSelected(Value))
+						DropBtn.Text = GetDisplayText()
 						RefreshOptions()
-						RefreshButton()
-						FireCallback()
-						Resize()
+						if Callback then Callback(CopySelected()) end
 					else
-						SetSingle(Opt)
-						RefreshButton()
+						SelectedOption = Value
+						DropBtn.Text = GetDisplayText()
 						IsOpen = false
 						Container.Visible = false
-						Arrow.Rotation = 0
-						Resize()
-						FireCallback()
+						DropChevron.SetDirection("down")
+						UpdateOpenSize()
+						if Callback then Callback(Value) end
 					end
 				end)
 			end
-			ListHolder.CanvasSize = UDim2.new(0, 0, 0, List.AbsoluteContentSize.Y + 4)
-			if IsOpen then Resize() end
 		end
 		RefreshOptions()
-
-		SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-			local Query = SearchBox.Text:lower()
-			for _, Child in ipairs(ListHolder:GetChildren()) do
-				if Child:IsA("TextButton") then Child.Visible = Query == "" or Child.Text:lower():find(Query, 1, true) ~= nil end
-			end
-			if IsOpen then Resize() end
-		end)
 
 		DropBtn.MouseButton1Click:Connect(function()
 			IsOpen = not IsOpen
 			Container.Visible = IsOpen
-			Arrow.Rotation = IsOpen and 180 or 0
-			Resize()
+			DropChevron.SetDirection(IsOpen and "up" or "down")
+			UpdateOpenSize()
 		end)
 
 		local API = {
-			Frame = Frame,
-			Get = function() return Multi and CopySelected() or SelectedOption end,
+			Get = function()
+				if Multi then return CopySelected() end
+				return SelectedOption
+			end,
 			Set = function(Val, SkipCallback)
+				ApplyDefault(Val)
+				RefreshOptions()
+				if Callback and not SkipCallback then
+					if Multi then Callback(CopySelected()) else Callback(SelectedOption) end
+				end
+			end,
+			Clear = function(SkipCallback)
 				if Multi then
 					Selected = {}
-					if type(Val) == "table" then
-						for _, Item in ipairs(Val) do Selected[#Selected + 1] = Item end
-					elseif Val ~= nil then Selected[1] = Val end
-				else
-					SetSingle(Val)
+					DropBtn.Text = "None"
+					RefreshOptions()
+					if Callback and not SkipCallback then Callback({}) end
 				end
-				RefreshOptions()
-				RefreshButton()
-				if Callback and not SkipCallback then FireCallback() end
 			end,
 			UpdateOptions = function(NewOptions)
 				Options = NewOptions or {}
 				if Multi then
-					local NewSelected = {}
-					for _, Value in ipairs(Selected) do
-						for _, Opt in ipairs(Options) do if Opt == Value then NewSelected[#NewSelected + 1] = Value break end end
+					local Valid = {}
+					for _, Item in ipairs(Selected) do
+						for _, Opt in ipairs(Options) do
+							if Item == Opt then table.insert(Valid, Item); break end
+						end
 					end
-					Selected = NewSelected
-				elseif SelectedOption then
-					local Exists = false
-					for _, Opt in ipairs(Options) do if Opt == SelectedOption then Exists = true break end end
-					if not Exists then SetSingle(Options[1]) end
-				end
-				SearchBox.Visible = #Options > Config.DropdownMaxVisible
-				ListHolder.Size = UDim2.new(1, -8, 1, SearchBox.Visible and -32 or -8)
-				ListHolder.Position = UDim2.new(0, 4, 0, SearchBox.Visible and 32 or 4)
-				RefreshOptions()
-				RefreshButton()
-			end,
-			IsMulti = function() return Multi end,
-			Clear = function(SkipCallback)
-				if Multi then
-					Selected = {}
+					Selected = Valid
 				else
-					SetSingle(nil)
+					local Found = false
+					for _, Opt in ipairs(Options) do if Opt == SelectedOption then Found = true break end end
+					if not Found then SelectedOption = Options[1] or "None" end
 				end
+				DropBtn.Text = GetDisplayText()
 				RefreshOptions()
-				RefreshButton()
-				if Callback and not SkipCallback then FireCallback() end
-			end,
-			Destroy = function() Frame:Destroy() end,
+				UpdateOpenSize()
+			end
 		}
 		return API
 	end
@@ -1084,51 +1123,31 @@ function Library.New(Options)
 	local Backdrop = Instance.new("Frame")
 	Backdrop.Name = "Backdrop"
 	Backdrop.Size = UDim2.fromScale(1, 1)
-	Backdrop.Position = UDim2.fromScale(0, 0)
 	Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	Backdrop.BackgroundTransparency = 0.62
-	Backdrop.BorderSizePixel = 0
-	Backdrop.Active = false
+	Backdrop.BackgroundTransparency = 0.72
+	Backdrop.Visible = false
 	Backdrop.ZIndex = 0
 	Backdrop.Parent = ScreenGui
-
-	local BackdropGradient = Instance.new("UIGradient")
-	BackdropGradient.Rotation = 90
-	BackdropGradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.10),
-		NumberSequenceKeypoint.new(0.5, 0),
-		NumberSequenceKeypoint.new(1, 0.20)
-	})
-	BackdropGradient.Parent = Backdrop
 
 	local PanelsList = {}
 	local ArePanelsVisible = true
 	local CategoryCount = 0
 
-	local function RepositionCategories()
-		for Index, Panel in ipairs(PanelsList) do
-			Panel.Position = UDim2.new(0, 15 + ((Index - 1) * (Config.CategoryWidth + Config.CategoryGap)), Panel.Position.Y.Scale, Panel.Position.Y.Offset)
-			Panel.Size = UDim2.new(0, Config.CategoryWidth, 0, Panel.Size.Y.Offset)
-		end
-	end
-
-	local function SetCategoryWidth(NewWidth)
-		NewWidth = math.clamp(tonumber(NewWidth) or Config.CategoryWidth, 120, 500)
-		Config.CategoryWidth = NewWidth
-		Config.PanelWidth = NewWidth
-		RepositionCategories()
-	end
-
 	local function CreateCategory(Name)
-		local XPos = 15 + (CategoryCount * (Config.CategoryWidth + Config.CategoryGap))
+		if type(Name) == "table" then
+			Name = Name.Name or Name.Title or Name[1] or "Category"
+		end
+		Name = tostring(Name or "Category")
+		local XPos = Config.CategoryLeft + (CategoryCount * (Config.PanelWidth + Config.CategoryGap))
 		CategoryCount = CategoryCount + 1
 
 		local Panel = Instance.new("Frame")
-		Panel.Size = UDim2.new(0, Config.CategoryWidth, 0, Config.HeaderHeight)
-		Panel.Position = UDim2.new(0, XPos, 0.05, 0)
+		Panel.Size = UDim2.new(0, Config.PanelWidth, 0, Config.HeaderHeight)
+		Panel.Position = UDim2.new(0, XPos, 0, Config.CategoryTop)
 		Panel.BackgroundColor3 = Config.BackgroundColor
 		Panel.BackgroundTransparency = 0.15
 		Panel.ClipsDescendants = true
+		Panel.ZIndex = 2
 		Panel.Parent = ScreenGui
 		table.insert(PanelsList, Panel)
 
@@ -1143,11 +1162,12 @@ function Library.New(Options)
 		Header.Size = UDim2.new(1, 0, 0, Config.HeaderHeight)
 		Header.BackgroundColor3 = Config.HeaderColor
 		Header.BackgroundTransparency = 0.1
+		Header.ZIndex = 3
 		Header.Parent = Panel
 		Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 6)
 
 		local HeaderTitle = Instance.new("TextLabel")
-		HeaderTitle.Size = UDim2.new(1, -12, 1, 0)
+		HeaderTitle.Size = UDim2.new(1, -38, 1, 0)
 		HeaderTitle.Position = UDim2.new(0, 12, 0, 0)
 		HeaderTitle.BackgroundTransparency = 1
 		HeaderTitle.Text = Name
@@ -1155,7 +1175,12 @@ function Library.New(Options)
 		HeaderTitle.Font = Enum.Font.GothamBold
 		HeaderTitle.TextSize = 12
 		HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+		HeaderTitle.ZIndex = 4
 		HeaderTitle.Parent = Header
+
+		local CategoryChevron = CreateChevron(Header, 10, 2)
+		CategoryChevron.Holder.ZIndex = 5
+		CategoryChevron.Holder.Position = UDim2.new(1, -12, 0.5, 0)
 
 		local Content = Instance.new("Frame")
 		Content.Size = UDim2.new(1, -16, 0, 0)
@@ -1175,7 +1200,7 @@ function Library.New(Options)
 			if not IsExpanded then
 				Content.Visible = false
 				TweenService:Create(Panel, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-					Size = UDim2.new(0, Config.CategoryWidth, 0, Config.HeaderHeight)
+					Size = UDim2.new(0, Config.PanelWidth, 0, Config.HeaderHeight)
 				}):Play()
 				return
 			end
@@ -1183,7 +1208,7 @@ function Library.New(Options)
 			Content.Visible = true
 			local ContentHeight = ListLayout.AbsoluteContentSize.Y
 			TweenService:Create(Panel, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, Config.CategoryWidth, 0, Config.HeaderHeight + ContentHeight + 12)
+				Size = UDim2.new(0, Config.PanelWidth, 0, Config.HeaderHeight + ContentHeight + 12)
 			}):Play()
 		end
 
@@ -1191,6 +1216,7 @@ function Library.New(Options)
 
 		MakeDraggable(Header, Panel, function()
 			IsExpanded = not IsExpanded
+			CategoryChevron.SetDirection(IsExpanded and "up" or "down")
 			UpdatePanelHeight()
 		end)
 
@@ -1233,6 +1259,7 @@ function Library.New(Options)
 			ModBtn.Font = Enum.Font.GothamMedium
 			ModBtn.TextSize = 11
 			ModBtn.AutoButtonColor = false
+			ModBtn.Selectable = false
 			ModBtn.Parent = Row
 			Instance.new("UICorner", ModBtn).CornerRadius = UDim.new(0, 4)
 
@@ -1277,6 +1304,7 @@ function Library.New(Options)
 				GearBtn.Font = Enum.Font.GothamBold
 				GearBtn.TextSize = 11
 				GearBtn.AutoButtonColor = false
+				GearBtn.Selectable = false
 				GearBtn.Parent = Row
 				Instance.new("UICorner", GearBtn).CornerRadius = UDim.new(0, 4)
 
@@ -1319,7 +1347,15 @@ function Library.New(Options)
 					elseif Setting.Type == "TextBox" then
 						Control = CreateTextBox(SettingsFrame, Setting.Name, Setting.Default, ProtectedCallback, Setting.Placeholder)
 					elseif Setting.Type == "Dropdown" then
-						Control = CreateDropdown(SettingsFrame, Setting.Name, Setting.Options, Setting.Default, ProtectedCallback, RefreshSettingsHeight, Setting.multi == true or Setting.Multi == true)
+						Control = CreateDropdown(
+							SettingsFrame,
+							Setting.Name,
+							Setting.Options,
+							Setting.Default,
+							ProtectedCallback,
+							RefreshSettingsHeight,
+							Setting.Multi == true or Setting.multi == true
+						)
 					elseif Setting.Type == "KeybindToggle" or Setting.Type == "Keybind" then
 						Control = CreateKeybind(SettingsFrame, Setting.Name, Setting.Default, ProtectedCallback, function()
 							SetModuleState(not Toggled)
@@ -1459,11 +1495,218 @@ function Library.New(Options)
 		end
 
 		local function AddDropdownModule(Opts)
-			local Control = CreateDropdown(Content, Opts.Name, Opts.Options, Opts.Default, Opts.Callback, UpdatePanelHeight, Opts.multi == true or Opts.Multi == true)
-			Control.Frame.LayoutOrder = ModuleCount
+			local ModName = Opts.Name
+			local OptionsList = Opts.Options or {}
+			local Default = Opts.Default
+			local Callback = Opts.Callback
+			local Flag = Opts.Flag
+			local Multi = Opts.Multi == true or Opts.multi == true
+
+			local ModFrame = Instance.new("Frame")
+			ModFrame.Size = UDim2.new(1, 0, 0, Config.ModuleHeight)
+			ModFrame.BackgroundTransparency = 1
+			ModFrame.LayoutOrder = ModuleCount
+			ModFrame.Parent = Content
+
+			local TextLbl = Instance.new("TextLabel")
+			TextLbl.Size = UDim2.new(1, -75, 0, Config.ModuleHeight)
+			TextLbl.Position = UDim2.new(0, 4, 0, 0)
+			TextLbl.BackgroundTransparency = 1
+			TextLbl.Text = tostring(ModName or "Dropdown")
+			TextLbl.TextColor3 = Color3.fromRGB(210, 210, 215)
+			TextLbl.Font = Enum.Font.GothamMedium
+			TextLbl.TextSize = 11
+			TextLbl.TextXAlignment = Enum.TextXAlignment.Left
+			TextLbl.TextTruncate = Enum.TextTruncate.AtEnd
+			TextLbl.Parent = ModFrame
+
+			local DropBtn = Instance.new("TextButton")
+			DropBtn.Size = UDim2.new(0, Config.DropdownWidth, 0, 20)
+			DropBtn.Position = UDim2.new(1, -Config.DropdownWidth, 0, 4)
+			DropBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+			DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			DropBtn.Font = Enum.Font.GothamMedium
+			DropBtn.TextSize = 9
+			DropBtn.TextTruncate = Enum.TextTruncate.AtEnd
+			DropBtn.AutoButtonColor = false
+			DropBtn.Selectable = false
+			local DropPad = Instance.new("UIPadding")
+			DropPad.PaddingRight = UDim.new(0, 16)
+			DropPad.PaddingLeft = UDim.new(0, 5)
+			DropPad.Parent = DropBtn
+			DropBtn.Parent = ModFrame
+			Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 4)
+
+			local DropChevron = CreateChevron(DropBtn, 9, 2)
+			DropChevron.Holder.ZIndex = 3
+			DropChevron.Holder.Position = UDim2.new(1, -8, 0.5, 0)
+
+			local IsOpen = false
+			local SelectedOption = nil
+			local Selected = {}
+
+			local function IsSelected(Value)
+				for _, Item in ipairs(Selected) do if Item == Value then return true end end
+				return false
+			end
+
+			local function SetSelected(Value, State)
+				for Index, Item in ipairs(Selected) do
+					if Item == Value then
+						if not State then table.remove(Selected, Index) end
+						return
+					end
+				end
+				if State then table.insert(Selected, Value) end
+			end
+
+			local function CopySelected()
+				local Result = {}
+				for _, Value in ipairs(Selected) do table.insert(Result, Value) end
+				return Result
+			end
+
+			local function GetDisplayText()
+				if not Multi then return tostring(SelectedOption or "None") end
+				if #Selected == 0 then return "None" end
+				if #Selected == 1 then return tostring(Selected[1]) end
+				return tostring(#Selected) .. " selected"
+			end
+
+			local function ApplyDefault(Value)
+				SelectedOption = nil
+				Selected = {}
+				if Multi then
+					if type(Value) == "table" then
+						for _, Item in ipairs(Value) do SetSelected(Item, true) end
+					elseif Value ~= nil then SetSelected(Value, true) end
+				else
+					if type(Value) == "table" then Value = Value[1] end
+					SelectedOption = Value or OptionsList[1] or "None"
+				end
+				DropBtn.Text = GetDisplayText()
+			end
+
+			ApplyDefault(Default)
+
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 0)
+			Container.Position = UDim2.new(0, 0, 0, Config.ModuleHeight + 2)
+			Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+			Container.Visible = false
+			Container.ClipsDescendants = true
+			Container.Parent = ModFrame
+			Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 4)
+
+			local ContainerPad = Instance.new("UIPadding")
+			ContainerPad.PaddingTop = UDim.new(0, 4)
+			ContainerPad.PaddingBottom = UDim.new(0, 4)
+			ContainerPad.PaddingLeft = UDim.new(0, 4)
+			ContainerPad.PaddingRight = UDim.new(0, 4)
+			ContainerPad.Parent = Container
+
+			local List = Instance.new("UIListLayout")
+			List.SortOrder = Enum.SortOrder.LayoutOrder
+			List.Padding = UDim.new(0, 3)
+			List.Parent = Container
+
+			local function UpdateOpenSize()
+				local VisibleCount = math.min(#OptionsList, Config.DropdownMaxVisible)
+				local TargetH = IsOpen and (VisibleCount * 21 + 8) or 0
+				Container.Size = UDim2.new(1, 0, 0, TargetH)
+				ModFrame.Size = UDim2.new(1, 0, 0, IsOpen and (Config.ModuleHeight + TargetH + 4) or Config.ModuleHeight)
+				UpdatePanelHeight()
+			end
+
+			local function RefreshOptions()
+				for _, Child in ipairs(Container:GetChildren()) do
+					if Child:IsA("TextButton") then Child:Destroy() end
+				end
+				for Index, Opt in ipairs(OptionsList) do
+					local Value = Opt
+					local OptBtn = Instance.new("TextButton")
+					OptBtn.Size = UDim2.new(1, 0, 0, 18)
+					OptBtn.LayoutOrder = Index
+					OptBtn.BackgroundColor3 = IsSelected(Value) and Config.ThemeColor or Color3.fromRGB(28, 28, 35)
+					OptBtn.BackgroundTransparency = IsSelected(Value) and 0.15 or 0
+					OptBtn.Text = tostring(Value)
+					OptBtn.TextColor3 = IsSelected(Value) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
+					OptBtn.Font = Enum.Font.Gotham
+					OptBtn.TextSize = 10
+					OptBtn.TextXAlignment = Enum.TextXAlignment.Left
+					OptBtn.AutoButtonColor = false
+					OptBtn.Selectable = false
+					OptBtn.Parent = Container
+					Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 3)
+					local CheckIcon = CreateCheckIcon(OptBtn, 10)
+					CheckIcon.Visible = Multi and IsSelected(Value)
+					OptBtn.MouseButton1Click:Connect(function()
+						if Multi then
+							SetSelected(Value, not IsSelected(Value))
+							DropBtn.Text = GetDisplayText()
+							RefreshOptions()
+							if Callback then Callback(CopySelected()) end
+						else
+							SelectedOption = Value
+							DropBtn.Text = GetDisplayText()
+							IsOpen = false
+							Container.Visible = false
+							DropChevron.SetDirection("down")
+							UpdateOpenSize()
+							if Callback then Callback(Value) end
+						end
+					end)
+				end
+			end
+			RefreshOptions()
+
+			DropBtn.MouseButton1Click:Connect(function()
+				IsOpen = not IsOpen
+				Container.Visible = IsOpen
+				DropChevron.SetDirection(IsOpen and "up" or "down")
+				UpdateOpenSize()
+			end)
+
 			ModuleCount = ModuleCount + 1
-			if Opts.Flag then FlagRegistry[Opts.Flag] = Control end
-			return Control
+
+			local API = {
+				Get = function() return Multi and CopySelected() or SelectedOption end,
+				Set = function(Val, SkipCallback)
+					ApplyDefault(Val)
+					RefreshOptions()
+					if Callback and not SkipCallback then Callback(Multi and CopySelected() or SelectedOption) end
+				end,
+				Clear = function(SkipCallback)
+					if Multi then
+						Selected = {}
+						DropBtn.Text = "None"
+						RefreshOptions()
+						if Callback and not SkipCallback then Callback({}) end
+					end
+				end,
+				UpdateOptions = function(NewOptions)
+					OptionsList = NewOptions or {}
+					if Multi then
+						local Valid = {}
+						for _, Item in ipairs(Selected) do
+							for _, Opt in ipairs(OptionsList) do
+								if Item == Opt then table.insert(Valid, Item); break end
+							end
+						end
+						Selected = Valid
+					else
+						local Found = false
+						for _, Opt in ipairs(OptionsList) do if Opt == SelectedOption then Found = true break end end
+						if not Found then SelectedOption = OptionsList[1] or "None" end
+					end
+					DropBtn.Text = GetDisplayText()
+					RefreshOptions()
+					UpdateOpenSize()
+				end
+			}
+
+			if Flag then FlagRegistry[Flag] = API end
+			return API
 		end
 
 		return { 
@@ -1701,44 +1944,42 @@ function Library.New(Options)
 	end
 
 	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Size = UDim2.new(0, IsTouchDevice and 150 or 155, 0, 34)
-	ToggleBtn.Position = IsTouchDevice and UDim2.new(0.5, -75, 1, -50) or UDim2.new(1, -170, 0, 15)
-	ToggleBtn.BackgroundColor3 = Config.HeaderColor
-	ToggleBtn.BackgroundTransparency = 0.08
+	ToggleBtn.Size = UDim2.new(0, 150, 0, 32)
+	ToggleBtn.Position = UDim2.new(1, -(Config.ToggleRight + 150), 0, Config.ToggleTop)
+	ToggleBtn.BackgroundColor3 = Config.BackgroundColor
+	ToggleBtn.BackgroundTransparency = 0.15
+	ToggleBtn.Text = "Hide " .. Config.ShowText
 	ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	ToggleBtn.Font = Enum.Font.GothamBold
 	ToggleBtn.TextSize = 11
 	ToggleBtn.AutoButtonColor = false
-	ToggleBtn.ZIndex = 50
+	ToggleBtn.Selectable = false
+	ToggleBtn.ZIndex = 20
 	ToggleBtn.Parent = ScreenGui
-	Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+	Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
 	local ToggleStroke = Instance.new("UIStroke")
-	ToggleStroke.Color = Config.ThemeColor
-	ToggleStroke.Transparency = 0.45
+	ToggleStroke.Color = Color3.fromRGB(18, 18, 22)
 	ToggleStroke.Thickness = 1
 	ToggleStroke.Parent = ToggleBtn
 
-	local function RefreshVisibility()
+	MakeDraggable(ToggleBtn, ToggleBtn, function()
+		ArePanelsVisible = not ArePanelsVisible
 		for _, Panel in ipairs(PanelsList) do
 			Panel.Visible = ArePanelsVisible
 		end
 		Backdrop.Visible = ArePanelsVisible
 		ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
-	end
-
-	RefreshVisibility()
-
-	MakeDraggable(ToggleBtn, ToggleBtn, function()
-		ArePanelsVisible = not ArePanelsVisible
-		RefreshVisibility()
 	end)
 
 	UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 		if GameProcessed then return end
 		if Input.KeyCode == Config.PanelsKey then
 			ArePanelsVisible = not ArePanelsVisible
-			RefreshVisibility()
+			for _, Panel in ipairs(PanelsList) do
+				Panel.Visible = ArePanelsVisible
+			end
+			ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
 		elseif Input.KeyCode == Config.ToggleKey then
 			ScreenGui.Enabled = not ScreenGui.Enabled
 		end
@@ -1758,13 +1999,38 @@ function Library.New(Options)
 		Configuration = ConfigurationCategory,
 		CreateCategory = CreateCategory,
 		CreateConfigCategory = CreateConfigCategory,
+		SetCategoryWidth = function(Width)
+			Width = tonumber(Width) or Config.PanelWidth
+			Config.PanelWidth = math.max(120, Width)
+			for Index, Panel in ipairs(PanelsList) do
+				Panel.Size = UDim2.new(0, Config.PanelWidth, 0, Panel.Size.Y.Offset)
+				if Index > 1 then
+					local XPos = Config.CategoryLeft + ((Index - 1) * (Config.PanelWidth + Config.CategoryGap))
+					Panel.Position = UDim2.new(0, XPos, Panel.Position.Y.Scale, Panel.Position.Y.Offset)
+				end
+			end
+		end,
+		SetCategoryTop = function(Y)
+			Config.CategoryTop = tonumber(Y) or Config.CategoryTop
+			for _, Panel in ipairs(PanelsList) do
+				Panel.Position = UDim2.new(Panel.Position.X.Scale, Panel.Position.X.Offset, 0, Config.CategoryTop)
+			end
+		end,
+		SetTogglePosition = function(Top, Right)
+			Config.ToggleTop = tonumber(Top) or Config.ToggleTop
+			Config.ToggleRight = tonumber(Right) or Config.ToggleRight
+			ToggleBtn.Position = UDim2.new(1, -(Config.ToggleRight + ToggleBtn.Size.X.Offset), 0, Config.ToggleTop)
+		end,
+		SetPanelsVisible = function(Visible)
+			ArePanelsVisible = Visible == true
+			for _, Panel in ipairs(PanelsList) do Panel.Visible = ArePanelsVisible end
+			Backdrop.Visible = ArePanelsVisible
+			ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
+		end,
 		SaveConfigToFile = SaveConfigToFile,
 		LoadConfigFromFile = LoadConfigFromFile,
 		DeleteConfigFile = DeleteConfigFile,
 		GetAvailableConfigs = GetAvailableConfigs,
-		SetCategoryWidth = SetCategoryWidth,
-		RefreshCategories = RepositionCategories,
-		Backdrop = Backdrop,
 	}
 end
 
