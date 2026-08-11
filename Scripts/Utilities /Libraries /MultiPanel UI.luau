@@ -1120,15 +1120,6 @@ function Library.New(Options)
 	ScreenGui.DisplayOrder = 999
 	ScreenGui.Parent = GetGuiParent()
 
-	local Backdrop = Instance.new("Frame")
-	Backdrop.Name = "Backdrop"
-	Backdrop.Size = UDim2.fromScale(1, 1)
-	Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	Backdrop.BackgroundTransparency = 0.72
-	Backdrop.Visible = false
-	Backdrop.ZIndex = 0
-	Backdrop.Parent = ScreenGui
-
 	local PanelsList = {}
 	local ArePanelsVisible = true
 	local CategoryCount = 0
@@ -1968,7 +1959,6 @@ function Library.New(Options)
 		for _, Panel in ipairs(PanelsList) do
 			Panel.Visible = ArePanelsVisible
 		end
-		Backdrop.Visible = ArePanelsVisible
 		ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
 	end)
 
@@ -2024,7 +2014,6 @@ function Library.New(Options)
 		SetPanelsVisible = function(Visible)
 			ArePanelsVisible = Visible == true
 			for _, Panel in ipairs(PanelsList) do Panel.Visible = ArePanelsVisible end
-			Backdrop.Visible = ArePanelsVisible
 			ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
 		end,
 		SaveConfigToFile = SaveConfigToFile,
