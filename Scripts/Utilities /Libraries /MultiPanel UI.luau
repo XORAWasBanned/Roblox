@@ -15,11 +15,92 @@ end
 
 local IsTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
-local function MakeDraggable(DragHandle, TargetFrame, OnClick)
+local function NormalizeKeyName(Key)
+	return (tostring(Key):lower():gsub("[^%alnum]", ""))
+end
+
+local function Pick(Config, Aliases, DefaultValue)
+	if type(Config) ~= "table" then
+		return DefaultValue
+	end
+
+	local Normalized = {}
+	for Key, Value in pairs(Config) do
+		Normalized[NormalizeKeyName(Key)] = Value
+	end
+
+	for _, Alias in ipairs(Aliases) do
+		local Value = Normalized[NormalizeKeyName(Alias)]
+		if Value ~= nil then
+			return Value
+		end
+	end
+
+	return DefaultValue
+end
+
+local function PickBool(Config, Aliases, DefaultValue)
+	local Value = Pick(Config, Aliases, DefaultValue)
+
+	if Value == nil then
+		return DefaultValue
+	end
+
+	if type(Value) == "boolean" then
+		return Value
+	end
+
+	if type(Value) == "number" then
+		return Value ~= 0
+	end
+
+	if type(Value) == "string" then
+		local LowerValue = Value:lower()
+		return LowerValue == "true" or LowerValue == "yes" or LowerValue == "on" or LowerValue == "1"
+	end
+
+	return Value and true or false
+end
+
+local function PickNumber(Config, Aliases, DefaultValue)
+	local Value = Pick(Config, Aliases, DefaultValue)
+	local NumberValue = tonumber(Value)
+
+	if NumberValue == nil then
+		return DefaultValue
+	end
+
+	return NumberValue
+end
+
+local LabelAliases = {"Label", "Name", "Text", "Title"}
+local CallbackAliases = {"Callback", "OnChange", "Changed", "OnChanged"}
+local DefaultAliases = {"Default", "Value", "DefaultValue", "Start"}
+local ToggleDefaultAliases = {"DefaultState", "Default", "Value", "Enabled", "State"}
+local FlagAliases = {"Flag", "ID", "Id", "Key"}
+local MinAliases = {"Min", "Minimum", "MinValue", "MinimumValue", "Low", "Lower"}
+local MaxAliases = {"Max", "Maximum", "MaxValue", "MaximumValue", "High", "Higher"}
+local StepAliases = {"Step", "Increment", "StepSize"}
+local PlaceholderAliases = {"Placeholder", "PlaceholderText", "Hint"}
+local NumericAliases = {"Numeric", "NumericOnly", "NumberOnly", "NumbersOnly", "Number", "Numbers", "DigitOnly", "DigitsOnly"}
+local MultiAliases = {"Multi", "MultiSelect", "Multiple", "MultiSelection", "AllowMultiple"}
+local OptionsAliases = {"Options", "Items", "Values", "List", "Choices"}
+local SettingsAliases = {"Settings", "SettingsTable", "Children", "Controls", "Options"}
+local TypeAliases = {"Type", "Kind", "Control", "ControlType"}
+local OnResizeAliases = {"OnResizeRequested", "OnResize", "ResizeCallback"}
+local KeyAliases = {"DefaultKey", "Key", "Default", "Bind", "Keybind", "KeyCode"}
+local ColorAliases = {"DefaultColor", "Color", "Default", "Value"}
+local AlphaAliases = {"HasAlpha", "Alpha", "UseAlpha", "AlphaEnabled", "Transparency"}
+local ThemeAliases = {"Theme", "ThemeColor", "Color", "AccentColor"}
+local CategoryWrapAliases = {"CategoryWrap", "WrapCategories", "Wrap"}
+local ToggleButtonPositionAliases = {"ToggleButtonPosition", "TogglePosition", "ButtonPosition"}
+local ConfigCategoryAliases = {"ConfigCategory", "ConfigurationCategory", "ConfigSystem", "Configs", "EnableConfig"}
+
+local function MakeDraggable(DragHandle, TargetFrame, OnClickCallback)
 	local Dragging = false
 	local DragStartInput = nil
-	local StartMousePos = Vector3.zero
-	local StartFramePos = UDim2.new()
+	local StartMousePosition = Vector3.zero
+	local StartFramePosition = UDim2.new()
 	local MovedFarEnough = false
 	local DragThreshold = 6
 
@@ -27,38 +108,38 @@ local function MakeDraggable(DragHandle, TargetFrame, OnClick)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 			Dragging = true
 			DragStartInput = Input
-			StartMousePos = Input.Position
-			StartFramePos = TargetFrame.Position
+			StartMousePosition = Input.Position
+			StartFramePosition = TargetFrame.Position
 			MovedFarEnough = false
 
-			local ChangedConn, EndedConn
-			
-			ChangedConn = UserInputService.InputChanged:Connect(function(ChangedInput)
+			local ChangedConnection, EndedConnection
+
+			ChangedConnection = UserInputService.InputChanged:Connect(function(ChangedInput)
 				if ChangedInput == DragStartInput or ChangedInput.UserInputType == Enum.UserInputType.MouseMovement or ChangedInput.UserInputType == Enum.UserInputType.Touch then
-					local Delta = ChangedInput.Position - StartMousePos
+					local Delta = ChangedInput.Position - StartMousePosition
 					if Delta.Magnitude > DragThreshold then
 						MovedFarEnough = true
 					end
 
 					if MovedFarEnough then
 						TargetFrame.Position = UDim2.new(
-							StartFramePos.X.Scale,
-							StartFramePos.X.Offset + Delta.X,
-							StartFramePos.Y.Scale,
-							StartFramePos.Y.Offset + Delta.Y
+							StartFramePosition.X.Scale,
+							StartFramePosition.X.Offset + Delta.X,
+							StartFramePosition.Y.Scale,
+							StartFramePosition.Y.Offset + Delta.Y
 						)
 					end
 				end
 			end)
 
-			EndedConn = UserInputService.InputEnded:Connect(function(EndedInput)
+			EndedConnection = UserInputService.InputEnded:Connect(function(EndedInput)
 				if EndedInput.UserInputType == Enum.UserInputType.MouseButton1 or EndedInput.UserInputType == Enum.UserInputType.Touch then
 					Dragging = false
-					ChangedConn:Disconnect()
-					EndedConn:Disconnect()
+					ChangedConnection:Disconnect()
+					EndedConnection:Disconnect()
 
-					if not MovedFarEnough and OnClick then
-						OnClick()
+					if not MovedFarEnough and OnClickCallback then
+						OnClickCallback()
 					end
 				end
 			end)
@@ -66,166 +147,85 @@ local function MakeDraggable(DragHandle, TargetFrame, OnClick)
 	end)
 end
 
--- Device-independent chevron icon made from UI frames.
--- This avoids font/emoji boxes and works consistently on mobile + desktop.
-local function CreateChevron(Parent, Size, Thickness)
-	Size = Size or 10
-	Thickness = Thickness or 2
-
-	local Holder = Instance.new("Frame")
-	Holder.Name = "Chevron"
-	Holder.Size = UDim2.new(0, Size, 0, Size)
-	Holder.BackgroundTransparency = 1
-	Holder.AnchorPoint = Vector2.new(0.5, 0.5)
-	Holder.Active = false
-	Holder.Parent = Parent
-
-	local Left = Instance.new("Frame")
-	Left.Name = "Left"
-	Left.Size = UDim2.new(0, math.ceil(Size * 0.55), 0, Thickness)
-	Left.AnchorPoint = Vector2.new(0, 0.5)
-	Left.Position = UDim2.new(0, 0, 0.5, 0)
-	Left.BackgroundColor3 = Color3.fromRGB(190, 190, 195)
-	Left.BorderSizePixel = 0
-	Left.Rotation = 45
-	Left.Active = false
-	Left.Parent = Holder
-
-	local Right = Instance.new("Frame")
-	Right.Name = "Right"
-	Right.Size = UDim2.new(0, math.ceil(Size * 0.55), 0, Thickness)
-	Right.AnchorPoint = Vector2.new(1, 0.5)
-	Right.Position = UDim2.new(1, 0, 0.5, 0)
-	Right.BackgroundColor3 = Color3.fromRGB(190, 190, 195)
-	Right.BorderSizePixel = 0
-	Right.Rotation = -45
-	Right.Active = false
-	Right.Parent = Holder
-
-	local API = {}
-	local function SetDirection(Direction)
-		-- Down = V, Up = ^
-		if Direction == "up" then
-			Left.Rotation = -45
-			Right.Rotation = 45
-		else
-			Left.Rotation = 45
-			Right.Rotation = -45
-		end
-	end
-	API.Holder = Holder
-	API.SetDirection = SetDirection
-	SetDirection("down")
-	return API
-end
-
-local function CreateCheckIcon(Parent, Size)
-	Size = Size or 11
-	local Holder = Instance.new("Frame")
-	Holder.Name = "Check"
-	Holder.Size = UDim2.new(0, Size, 0, Size)
-	Holder.AnchorPoint = Vector2.new(1, 0.5)
-	Holder.Position = UDim2.new(1, -6, 0.5, 0)
-	Holder.BackgroundTransparency = 1
-	Holder.Active = false
-	Holder.Visible = false
-	Holder.Parent = Parent
-
-	local Short = Instance.new("Frame")
-	Short.Size = UDim2.new(0, math.max(3, math.floor(Size * 0.38)), 0, 2)
-	Short.Position = UDim2.new(0, 0, 0.5, 1)
-	Short.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	Short.BorderSizePixel = 0
-	Short.Rotation = 45
-	Short.Parent = Holder
-
-	local Long = Instance.new("Frame")
-	Long.Size = UDim2.new(0, math.max(5, math.floor(Size * 0.62)), 0, 2)
-	Long.AnchorPoint = Vector2.new(1, 0)
-	Long.Position = UDim2.new(1, 0, 0.35, 0)
-	Long.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	Long.BorderSizePixel = 0
-	Long.Rotation = -45
-	Long.Parent = Holder
-
-	return Holder
-end
-
 local Library = {}
 
 function Library.New(Options)
 	Options = Options or {}
 
-	local ConfigFolder = Options.ConfigFolder or ((Options.Name or "SleekClient") .. "Configs")
+	local Name = Pick(Options, {"Name", "Title", "GuiName", "LibraryName"}, "MultiPanel UI")
+	local ConfigFolder = Pick(Options, {"ConfigFolder", "Folder", "ConfigDirectory", "SaveFolder"}, Name .. "Configs")
+
 	if makefolder and isfolder and not isfolder(ConfigFolder) then
 		makefolder(ConfigFolder)
 	end
 
-	local Config = {
-		Name = Options.Name or "Test",
-		ToggleKey = Options.ToggleKey or Enum.KeyCode.RightShift,
-		PanelsKey = Options.PanelsKey or Enum.KeyCode.H,
-		ThemeColor = Options.ThemeColor or Color3.fromRGB(0, 150, 255),
-		BackgroundColor = Options.BackgroundColor or Color3.fromRGB(15, 15, 18),
-		HeaderColor = Options.HeaderColor or Color3.fromRGB(24, 24, 28),
-		PanelWidth = Options.CategoryWidth or Options.PanelWidth or 165,
-		CategoryGap = Options.CategoryGap or 12,
-		HeaderHeight = Options.HeaderHeight or 34,
-		DropdownWidth = Options.DropdownWidth or 70,
-		DropdownMaxVisible = Options.DropdownMaxVisible or 7,
-		ModuleHeight = Options.ModuleHeight or 28,
-		TweenTime = Options.TweenTime or 0.2,
-		CategoryTop = Options.CategoryTop or (IsTouchDevice and 56 or 58),
-		CategoryLeft = Options.CategoryLeft or 15,
-		ToggleTop = Options.ToggleTop or (IsTouchDevice and 10 or 12),
-		ToggleRight = Options.ToggleRight or 15,
-		ShowText = Options.Name or "Custom",
+	local Configuration = {
+		Name = Name,
+		ToggleKey = Pick(Options, {"ToggleKey", "ToggleKeyCode", "HideKey", "GuiKey"}, Enum.KeyCode.RightShift),
+		PanelsKey = Pick(Options, {"PanelsKey", "PanelKey", "PanelsToggleKey", "CategoriesKey"}, Enum.KeyCode.H),
+		ThemeColor = Pick(Options, ThemeAliases, Color3.fromRGB(0, 150, 255)),
+		BackgroundColor = Pick(Options, {"BackgroundColor", "Background", "BackgroundColor3", "BgColor"}, Color3.fromRGB(15, 15, 18)),
+		HeaderColor = Pick(Options, {"HeaderColor", "Header", "HeaderBackgroundColor", "TitleColor"}, Color3.fromRGB(24, 24, 28)),
+		PanelWidth = PickNumber(Options, {"PanelWidth", "Width", "CategoryWidth", "PanelSize"}, 195),
+		HeaderHeight = PickNumber(Options, {"HeaderHeight", "HeaderSize", "TitleHeight"}, 34),
+		ModuleHeight = PickNumber(Options, {"ModuleHeight", "ModuleSize", "ButtonHeight"}, 28),
+		TweenTime = PickNumber(Options, {"TweenTime", "TweenSpeed", "AnimationTime"}, 0.2),
+		CornerRadius = PickNumber(Options, {"CornerRadius", "Radius", "Roundness"}, 6),
+		CategoryStartX = PickNumber(Options, {"CategoryStartX", "StartX", "OffsetX"}, 15),
+		CategoryStartY = PickNumber(Options, {"CategoryStartY", "StartY", "OffsetY"}, 60),
+		CategorySpacing = PickNumber(Options, {"CategorySpacing", "Spacing", "Padding"}, 12),
+		CategoryWrap = PickBool(Options, CategoryWrapAliases, true),
+		ToggleButtonSize = Pick(Options, {"ToggleButtonSize", "ToggleSize", "ButtonSize"}, UDim2.new(0, 150, 0, 32)),
 	}
 
 	local FlagRegistry = {}
 	local DropdownRegistry = {}
 
-	local function CreateToggle(Parent, Label, DefaultState, Callback)
+	local function CreateToggle(Parent, ToggleConfig)
+		local Label = Pick(ToggleConfig, LabelAliases, "")
+		local DefaultState = PickBool(ToggleConfig, ToggleDefaultAliases, false)
+		local Callback = Pick(ToggleConfig, CallbackAliases, nil)
+
 		local Frame = Instance.new("Frame")
 		Frame.Size = UDim2.new(1, 0, 0, 26)
 		Frame.BackgroundTransparency = 1
 		Frame.Parent = Parent
 
-		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(1, -45, 1, 0)
-		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = Label
-		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-		TextLbl.Font = Enum.Font.GothamMedium
-		TextLbl.TextSize = 11
-		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-		TextLbl.Parent = Frame
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(1, -45, 1, 0)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = Label
+		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		TextLabel.Font = Enum.Font.GothamMedium
+		TextLabel.TextSize = 11
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TextLabel.Parent = Frame
 
-		local ToggleBtn = Instance.new("TextButton")
-		ToggleBtn.Size = UDim2.new(0, 40, 0, 18)
-		ToggleBtn.Position = UDim2.new(1, -40, 0, 4)
-		ToggleBtn.BackgroundColor3 = DefaultState and Config.ThemeColor or Color3.fromRGB(35, 35, 42)
-		ToggleBtn.Text = DefaultState and "ON" or "OFF"
-		ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		ToggleBtn.Font = Enum.Font.GothamBold
-		ToggleBtn.TextSize = 9
-		ToggleBtn.AutoButtonColor = false
-		ToggleBtn.Parent = Frame
+		local ToggleButton = Instance.new("TextButton")
+		ToggleButton.Size = UDim2.new(0, 40, 0, 18)
+		ToggleButton.Position = UDim2.new(1, -40, 0, 4)
+		ToggleButton.BackgroundColor3 = DefaultState and Configuration.ThemeColor or Color3.fromRGB(35, 35, 42)
+		ToggleButton.Text = DefaultState and "ON" or "OFF"
+		ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		ToggleButton.Font = Enum.Font.GothamBold
+		ToggleButton.TextSize = 9
+		ToggleButton.AutoButtonColor = false
+		ToggleButton.Parent = Frame
 
-		Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 4)
+		Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 4)
 
 		local Toggled = DefaultState or false
-		
+
 		local function Fire(Value, SkipCallback)
 			Toggled = Value
-			TweenService:Create(ToggleBtn, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-				BackgroundColor3 = Toggled and Config.ThemeColor or Color3.fromRGB(35, 35, 42)
+			TweenService:Create(ToggleButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				BackgroundColor3 = Toggled and Configuration.ThemeColor or Color3.fromRGB(35, 35, 42)
 			}):Play()
-			ToggleBtn.Text = Toggled and "ON" or "OFF"
+			ToggleButton.Text = Toggled and "ON" or "OFF"
 			if Callback and not SkipCallback then Callback(Toggled) end
 		end
 
-		ToggleBtn.MouseButton1Click:Connect(function()
+		ToggleButton.MouseButton1Click:Connect(function()
 			Fire(not Toggled)
 		end)
 
@@ -235,34 +235,41 @@ function Library.New(Options)
 		}
 	end
 
-	local function CreateSlider(Parent, Label, Min, Max, Default, Step, Theme, Callback)
-		Step = Step or 0.5
+	local function CreateSlider(Parent, SliderConfig)
+		local Label = Pick(SliderConfig, LabelAliases, "")
+		local Minimum = PickNumber(SliderConfig, MinAliases, 0)
+		local Maximum = PickNumber(SliderConfig, MaxAliases, 100)
+		local DefaultValue = PickNumber(SliderConfig, DefaultAliases, Minimum)
+		local StepValue = PickNumber(SliderConfig, StepAliases, 0.5)
+		local ThemeOverride = Pick(SliderConfig, ThemeAliases, nil)
+		local Callback = Pick(SliderConfig, CallbackAliases, nil)
+
 		local Frame = Instance.new("Frame")
 		Frame.Size = UDim2.new(1, 0, 0, 36)
 		Frame.BackgroundTransparency = 1
 		Frame.Parent = Parent
 
-		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(0.6, 0, 0, 14)
-		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = Label
-		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-		TextLbl.Font = Enum.Font.GothamMedium
-		TextLbl.TextSize = 11
-		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-		TextLbl.Parent = Frame
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(0.6, 0, 0, 14)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = Label
+		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		TextLabel.Font = Enum.Font.GothamMedium
+		TextLabel.TextSize = 11
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TextLabel.Parent = Frame
 
-		local ValBox = Instance.new("TextBox")
-		ValBox.Size = UDim2.new(0, 45, 0, 16)
-		ValBox.Position = UDim2.new(1, -45, 0, 0)
-		ValBox.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-		ValBox.Text = tostring(Default)
-		ValBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-		ValBox.Font = Enum.Font.GothamBold
-		ValBox.TextSize = 10
-		ValBox.ClearTextOnFocus = false
-		ValBox.Parent = Frame
-		Instance.new("UICorner", ValBox).CornerRadius = UDim.new(0, 3)
+		local ValueBox = Instance.new("TextBox")
+		ValueBox.Size = UDim2.new(0, 45, 0, 16)
+		ValueBox.Position = UDim2.new(1, -45, 0, 0)
+		ValueBox.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		ValueBox.Text = tostring(DefaultValue)
+		ValueBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+		ValueBox.Font = Enum.Font.GothamBold
+		ValueBox.TextSize = 10
+		ValueBox.ClearTextOnFocus = false
+		ValueBox.Parent = Frame
+		Instance.new("UICorner", ValueBox).CornerRadius = UDim.new(0, 3)
 
 		local TrackArea = Instance.new("Frame")
 		TrackArea.Size = UDim2.new(1, 0, 0, 18)
@@ -278,7 +285,7 @@ function Library.New(Options)
 		Instance.new("UICorner", Track).CornerRadius = UDim.new(0, 3)
 
 		local Fill = Instance.new("Frame")
-		Fill.BackgroundColor3 = Theme or Config.ThemeColor
+		Fill.BackgroundColor3 = ThemeOverride or Configuration.ThemeColor
 		Fill.Parent = Track
 		Instance.new("UICorner", Fill).CornerRadius = UDim.new(0, 3)
 
@@ -295,11 +302,11 @@ function Library.New(Options)
 		KnobStroke.Thickness = 1.5
 		KnobStroke.Parent = Knob
 
-		local Value = Default
+		local CurrentValue = DefaultValue
 
-		local function UpdateDisplay(Val)
-			ValBox.Text = string.format("%.1f", Val)
-			local Alpha = math.clamp((Val - Min) / (Max - Min), 0, 1)
+		local function UpdateDisplay(DisplayValue)
+			ValueBox.Text = string.format("%.1f", DisplayValue)
+			local Alpha = math.clamp((DisplayValue - Minimum) / (Maximum - Minimum), 0, 1)
 			TweenService:Create(Fill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Size = UDim2.new(Alpha, 0, 1, 0)
 			}):Play()
@@ -307,25 +314,26 @@ function Library.New(Options)
 				Position = UDim2.new(Alpha, -7, 0.5, -7)
 			}):Play()
 		end
-		UpdateDisplay(Default)
 
-		local function ApplyValue(NewVal, SkipCallback)
-			if Step > 0 then
-				NewVal = math.round(NewVal / Step) * Step
+		UpdateDisplay(DefaultValue)
+
+		local function ApplyValue(NewValue, SkipCallback)
+			if StepValue > 0 then
+				NewValue = math.round(NewValue / StepValue) * StepValue
 			end
-			Value = math.clamp(NewVal, Min, Max)
-			UpdateDisplay(Value)
-			if Callback and not SkipCallback then Callback(Value) end
+			CurrentValue = math.clamp(NewValue, Minimum, Maximum)
+			UpdateDisplay(CurrentValue)
+			if Callback and not SkipCallback then Callback(CurrentValue) end
 		end
 
 		local IsDraggingSlider = false
 
 		local function UpdateSliderFromInput(Input)
-			local AbsolutePos = Track.AbsolutePosition
+			local AbsolutePosition = Track.AbsolutePosition
 			local AbsoluteSize = Track.AbsoluteSize
-			local RelativeX = math.clamp((Input.Position.X - AbsolutePos.X) / AbsoluteSize.X, 0, 1)
-			local RawVal = Min + RelativeX * (Max - Min)
-			ApplyValue(RawVal)
+			local RelativeX = math.clamp((Input.Position.X - AbsolutePosition.X) / AbsoluteSize.X, 0, 1)
+			local RawValue = Minimum + RelativeX * (Maximum - Minimum)
+			ApplyValue(RawValue)
 		end
 
 		local function StartDrag(Input)
@@ -357,158 +365,169 @@ function Library.New(Options)
 			end
 		end)
 
-		ValBox.FocusLost:Connect(function()
-			local NumVal = tonumber(ValBox.Text)
-			if NumVal then
-				ApplyValue(NumVal)
+		ValueBox.FocusLost:Connect(function()
+			local NumericValue = tonumber(ValueBox.Text)
+			if NumericValue then
+				ApplyValue(NumericValue)
 			else
-				UpdateDisplay(Value)
+				UpdateDisplay(CurrentValue)
 			end
 		end)
 
 		return {
-			Get = function() return Value end,
-			Set = function(Val, SkipCallback) ApplyValue(Val, SkipCallback) end
+			Get = function() return CurrentValue end,
+			Set = function(Value, SkipCallback) ApplyValue(Value, SkipCallback) end
 		}
 	end
 
-	local function CreateTextBox(Parent, Label, Default, Callback, Placeholder)
-		local Frame = Instance.new("Frame")
-		Frame.Size = UDim2.new(1, 0, 0, 26)
-		Frame.BackgroundTransparency = 1
-		Frame.Parent = Parent
-
-		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(1, -70, 1, 0)
-		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = Label
-		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-		TextLbl.Font = Enum.Font.GothamMedium
-		TextLbl.TextSize = 11
-		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-		TextLbl.Parent = Frame
-
-		local Box = Instance.new("TextBox")
-		Box.Size = UDim2.new(0, 65, 0, 18)
-		Box.Position = UDim2.new(1, -65, 0, 4)
-		Box.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-		Box.Text = tostring(Default or "")
-		Box.PlaceholderText = Placeholder or ""
-		Box.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-		Box.TextColor3 = Color3.fromRGB(255, 255, 255)
-		Box.Font = Enum.Font.Gotham
-		Box.TextSize = 10
-		Box.ClearTextOnFocus = false
-		Box.Parent = Frame
-		Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 4)
-
-		Box.FocusLost:Connect(function()
-			if Callback then Callback(Box.Text) end
-		end)
-
-		return {
-			Get = function() return Box.Text end,
-			Set = function(Val, SkipCallback)
-				Box.Text = tostring(Val)
-				if Callback and not SkipCallback then Callback(Box.Text) end
-			end
-		}
-	end
-
-	local function CreateDropdown(Parent, Label, Options, Default, Callback, OnResizeRequested, Multi)
-		Options = Options or {}
-		Multi = Multi == true
+	local function CreateTextBox(Parent, TextBoxConfig)
+		local Label = Pick(TextBoxConfig, LabelAliases, "")
+		local DefaultValue = Pick(TextBoxConfig, DefaultAliases, "")
+		local Callback = Pick(TextBoxConfig, CallbackAliases, nil)
+		local PlaceholderText = Pick(TextBoxConfig, PlaceholderAliases, "")
+		local NumericOnly = PickBool(TextBoxConfig, NumericAliases, false)
 
 		local Frame = Instance.new("Frame")
 		Frame.Size = UDim2.new(1, 0, 0, 26)
 		Frame.BackgroundTransparency = 1
 		Frame.Parent = Parent
 
-		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(1, -(Config.DropdownWidth + 5), 0, 26)
-		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = tostring(Label or "Dropdown")
-		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-		TextLbl.Font = Enum.Font.GothamMedium
-		TextLbl.TextSize = 11
-		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-		TextLbl.TextTruncate = Enum.TextTruncate.AtEnd
-		TextLbl.Parent = Frame
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(1, -70, 1, 0)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = Label
+		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		TextLabel.Font = Enum.Font.GothamMedium
+		TextLabel.TextSize = 11
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TextLabel.Parent = Frame
 
-		local DropBtn = Instance.new("TextButton")
-		DropBtn.Size = UDim2.new(0, Config.DropdownWidth, 0, 18)
-		DropBtn.Position = UDim2.new(1, -Config.DropdownWidth, 0, 4)
-		DropBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-		DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		DropBtn.Font = Enum.Font.GothamMedium
-		DropBtn.TextSize = 9
-		DropBtn.TextTruncate = Enum.TextTruncate.AtEnd
-		DropBtn.AutoButtonColor = false
-		DropBtn.Selectable = false
-		local DropPad = Instance.new("UIPadding")
-		DropPad.PaddingRight = UDim.new(0, 16)
-		DropPad.PaddingLeft = UDim.new(0, 5)
-		DropPad.Parent = DropBtn
-		DropBtn.Parent = Frame
-		Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 4)
+		local InputBox = Instance.new("TextBox")
+		InputBox.Size = UDim2.new(0, 65, 0, 18)
+		InputBox.Position = UDim2.new(1, -65, 0, 4)
+		InputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+		InputBox.Text = tostring(DefaultValue or "")
+		InputBox.PlaceholderText = PlaceholderText or ""
+		InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+		InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+		InputBox.Font = Enum.Font.Gotham
+		InputBox.TextSize = 10
+		InputBox.ClearTextOnFocus = false
+		InputBox.Parent = Frame
+		Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
 
-		local DropChevron = CreateChevron(DropBtn, 9, 2)
-		DropChevron.Holder.ZIndex = 3
-		DropChevron.Holder.Position = UDim2.new(1, -8, 0.5, 0)
+		if NumericOnly then
+			InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+				local FilteredText = InputBox.Text:gsub("[^%d%.%-]", "")
+				local DecimalCount = select(2, FilteredText:gsub("%.", ""))
+				local MinusCount = select(2, FilteredText:gsub("%-", ""))
 
+				if DecimalCount > 1 then
+					FilteredText = FilteredText:match("^(.-)%..*$") .. "." .. FilteredText:match("^.*%.(.+)$"):gsub("%.", "")
+				end
+
+				if MinusCount > 1 or (MinusCount == 1 and FilteredText:sub(1,1) ~= "-") then
+					FilteredText = FilteredText:gsub("%-", "")
+				end
+
+				if FilteredText ~= InputBox.Text then
+					InputBox.Text = FilteredText
+				end
+			end)
+		end
+
+		InputBox.FocusLost:Connect(function()
+			if Callback then
+				if NumericOnly then
+					local NumericValue = tonumber(InputBox.Text)
+					Callback(NumericValue or 0)
+				else
+					Callback(InputBox.Text)
+				end
+			end
+		end)
+
+		return {
+			Get = function()
+				if NumericOnly then return tonumber(InputBox.Text) or 0 end
+				return InputBox.Text
+			end,
+			Set = function(Value, SkipCallback)
+				InputBox.Text = tostring(Value)
+				if Callback and not SkipCallback then
+					if NumericOnly then
+						Callback(tonumber(InputBox.Text) or 0)
+					else
+						Callback(InputBox.Text)
+					end
+				end
+			end
+		}
+	end
+
+	local function CreateDropdown(Parent, DropdownConfig)
+		local Label = Pick(DropdownConfig, LabelAliases, "")
+		local OptionsList = Pick(DropdownConfig, OptionsAliases, {})
+		local DefaultValue = Pick(DropdownConfig, DefaultAliases, nil)
+		local Callback = Pick(DropdownConfig, CallbackAliases, nil)
+		local OnResizeRequested = Pick(DropdownConfig, OnResizeAliases, nil)
+		local MultiSelect = PickBool(DropdownConfig, MultiAliases, false)
+
+		if type(OptionsList) ~= "table" then
+			OptionsList = {}
+		end
+
+		local Frame = Instance.new("Frame")
+		Frame.Size = UDim2.new(1, 0, 0, 26)
+		Frame.BackgroundTransparency = 1
+		Frame.Parent = Parent
+
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(1, -75, 0, 26)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = Label
+		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		TextLabel.Font = Enum.Font.GothamMedium
+		TextLabel.TextSize = 11
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TextLabel.Parent = Frame
+
+		local DropdownButton = Instance.new("TextButton")
+		DropdownButton.Size = UDim2.new(0, 70, 0, 18)
+		DropdownButton.Position = UDim2.new(1, -70, 0, 4)
+		DropdownButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		DropdownButton.Text = (type(DefaultValue) == "string" and DefaultValue) or (OptionsList[1] or "None")
+		DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		DropdownButton.Font = Enum.Font.GothamMedium
+		DropdownButton.TextSize = 10
+		DropdownButton.AutoButtonColor = false
+		DropdownButton.Parent = Frame
+		Instance.new("UICorner", DropdownButton).CornerRadius = UDim.new(0, 4)
+
+		local SelectedOption = DropdownButton.Text
+		local SelectedSet = {}
+		local SelectedList = {}
+		local OptionButtons = {}
 		local IsOpen = false
-		local SelectedOption = nil
-		local Selected = {}
 
-		local function IsSelected(Value)
-			for _, Item in ipairs(Selected) do
-				if Item == Value then return true end
-			end
-			return false
-		end
-
-		local function SetSelected(Value, State)
-			for Index, Item in ipairs(Selected) do
-				if Item == Value then
-					if not State then table.remove(Selected, Index) end
-					return
-				end
-			end
-			if State then table.insert(Selected, Value) end
-		end
-
-		local function CopySelected()
-			local Result = {}
-			for _, Value in ipairs(Selected) do table.insert(Result, Value) end
-			return Result
-		end
-
-		local function GetDisplayText()
-			if not Multi then
-				return tostring(SelectedOption or "None")
-			end
-			if #Selected == 0 then return "None" end
-			if #Selected == 1 then return tostring(Selected[1]) end
-			return tostring(#Selected) .. " selected"
-		end
-
-		local function ApplyDefault(Value)
-			SelectedOption = nil
-			Selected = {}
-			if Multi then
-				if type(Value) == "table" then
-					for _, Item in ipairs(Value) do SetSelected(Item, true) end
-				elseif Value ~= nil then
-					SetSelected(Value, true)
-				end
+		local function UpdateMultiText()
+			if #SelectedList == 0 then
+				DropdownButton.Text = "None"
+			elseif #SelectedList == 1 then
+				DropdownButton.Text = SelectedList[1]
 			else
-				if type(Value) == "table" then Value = Value[1] end
-				SelectedOption = Value or Options[1] or "None"
+				DropdownButton.Text = #SelectedList .. " selected"
 			end
-			DropBtn.Text = GetDisplayText()
 		end
 
-		ApplyDefault(Default)
+		if MultiSelect then
+			local DefaultList = type(DefaultValue) == "table" and DefaultValue or {}
+			for _, Option in ipairs(DefaultList) do
+				SelectedSet[Option] = true
+				table.insert(SelectedList, Option)
+			end
+			UpdateMultiText()
+		end
 
 		local Container = Instance.new("Frame")
 		Container.Size = UDim2.new(1, 0, 0, 0)
@@ -519,184 +538,225 @@ function Library.New(Options)
 		Container.Parent = Frame
 		Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 4)
 
-		local ContainerPad = Instance.new("UIPadding")
-		ContainerPad.PaddingTop = UDim.new(0, 4)
-		ContainerPad.PaddingBottom = UDim.new(0, 4)
-		ContainerPad.PaddingLeft = UDim.new(0, 4)
-		ContainerPad.PaddingRight = UDim.new(0, 4)
-		ContainerPad.Parent = Container
+		local ContainerPadding = Instance.new("UIPadding")
+		ContainerPadding.PaddingTop = UDim.new(0, 4)
+		ContainerPadding.PaddingBottom = UDim.new(0, 4)
+		ContainerPadding.PaddingLeft = UDim.new(0, 4)
+		ContainerPadding.PaddingRight = UDim.new(0, 4)
+		ContainerPadding.Parent = Container
 
-		local List = Instance.new("UIListLayout")
-		List.SortOrder = Enum.SortOrder.LayoutOrder
-		List.Padding = UDim.new(0, 3)
-		List.Parent = Container
-
-		local function GetVisibleCount()
-			return math.min(#Options, Config.DropdownMaxVisible)
-		end
-
-		local function UpdateOpenSize()
-			local TargetH = IsOpen and (GetVisibleCount() * 21 + 8) or 0
-			Container.Size = UDim2.new(1, 0, 0, TargetH)
-			Frame.Size = UDim2.new(1, 0, 0, IsOpen and (28 + TargetH + 4) or 26)
-			if OnResizeRequested then OnResizeRequested() end
-		end
+		local ListLayout = Instance.new("UIListLayout")
+		ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ListLayout.Padding = UDim.new(0, 3)
+		ListLayout.Parent = Container
 
 		local function RefreshOptions()
 			for _, Child in ipairs(Container:GetChildren()) do
 				if Child:IsA("TextButton") then Child:Destroy() end
 			end
 
-			for Index, Opt in ipairs(Options) do
-				local Value = Opt
-				local OptBtn = Instance.new("TextButton")
-				OptBtn.Size = UDim2.new(1, 0, 0, 18)
-				OptBtn.LayoutOrder = Index
-				OptBtn.BackgroundColor3 = IsSelected(Value) and Config.ThemeColor or Color3.fromRGB(28, 28, 35)
-				OptBtn.BackgroundTransparency = IsSelected(Value) and 0.15 or 0
-				OptBtn.Text = tostring(Value)
-				OptBtn.TextColor3 = IsSelected(Value) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
-				OptBtn.Font = Enum.Font.Gotham
-				OptBtn.TextSize = 10
-				OptBtn.TextXAlignment = Enum.TextXAlignment.Left
-				OptBtn.AutoButtonColor = false
-				OptBtn.Selectable = false
-				OptBtn.Parent = Container
-				Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 3)
+			OptionButtons = {}
 
-				local CheckIcon = CreateCheckIcon(OptBtn, 10)
-				CheckIcon.Visible = Multi and IsSelected(Value)
+			for _, Option in ipairs(OptionsList) do
+				local OptionButton = Instance.new("TextButton")
+				OptionButton.Size = UDim2.new(1, 0, 0, 18)
+				OptionButton.BackgroundColor3 = (MultiSelect and SelectedSet[Option]) and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+				OptionButton.Text = Option
+				OptionButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+				OptionButton.Font = Enum.Font.Gotham
+				OptionButton.TextSize = 10
+				OptionButton.Parent = Container
+				Instance.new("UICorner", OptionButton).CornerRadius = UDim.new(0, 3)
+				OptionButtons[Option] = OptionButton
 
-				OptBtn.MouseButton1Click:Connect(function()
-					if Multi then
-						SetSelected(Value, not IsSelected(Value))
-						DropBtn.Text = GetDisplayText()
-						RefreshOptions()
-						if Callback then Callback(CopySelected()) end
+				OptionButton.MouseButton1Click:Connect(function()
+					if MultiSelect then
+						if SelectedSet[Option] then
+							SelectedSet[Option] = nil
+							for Index, Value in ipairs(SelectedList) do
+								if Value == Option then
+									table.remove(SelectedList, Index)
+									break
+								end
+							end
+						else
+							SelectedSet[Option] = true
+							table.insert(SelectedList, Option)
+						end
+
+						OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+						UpdateMultiText()
+
+						if Callback then
+							Callback(SelectedList)
+						end
 					else
-						SelectedOption = Value
-						DropBtn.Text = GetDisplayText()
+						SelectedOption = Option
+						DropdownButton.Text = Option
 						IsOpen = false
 						Container.Visible = false
-						DropChevron.SetDirection("down")
-						UpdateOpenSize()
-						if Callback then Callback(Value) end
+						Frame.Size = UDim2.new(1, 0, 0, 26)
+
+						if Callback then
+							Callback(Option)
+						end
+
+						if OnResizeRequested then
+							OnResizeRequested()
+						end
 					end
 				end)
 			end
 		end
+
 		RefreshOptions()
 
-		DropBtn.MouseButton1Click:Connect(function()
+		DropdownButton.MouseButton1Click:Connect(function()
 			IsOpen = not IsOpen
 			Container.Visible = IsOpen
-			DropChevron.SetDirection(IsOpen and "up" or "down")
-			UpdateOpenSize()
+			local TargetHeight = IsOpen and (#OptionsList * 21 + 8) or 0
+			Container.Size = UDim2.new(1, 0, 0, TargetHeight)
+			Frame.Size = UDim2.new(1, 0, 0, IsOpen and (28 + TargetHeight + 4) or 26)
+
+			if OnResizeRequested then
+				OnResizeRequested()
+			end
 		end)
 
 		local API = {
 			Get = function()
-				if Multi then return CopySelected() end
+				if MultiSelect then
+					local Copy = {}
+					for _, Value in ipairs(SelectedList) do
+						table.insert(Copy, Value)
+					end
+					return Copy
+				end
 				return SelectedOption
 			end,
-			Set = function(Val, SkipCallback)
-				ApplyDefault(Val)
-				RefreshOptions()
-				if Callback and not SkipCallback then
-					if Multi then Callback(CopySelected()) else Callback(SelectedOption) end
-				end
-			end,
-			Clear = function(SkipCallback)
-				if Multi then
-					Selected = {}
-					DropBtn.Text = "None"
-					RefreshOptions()
-					if Callback and not SkipCallback then Callback({}) end
+			Set = function(Value, SkipCallback)
+				if MultiSelect then
+					SelectedSet = {}
+					SelectedList = {}
+
+					for _, Option in ipairs(Value or {}) do
+						SelectedSet[Option] = true
+						table.insert(SelectedList, Option)
+					end
+
+					UpdateMultiText()
+
+					for Option, OptionButton in pairs(OptionButtons) do
+						OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+					end
+
+					if Callback and not SkipCallback then
+						Callback(SelectedList)
+					end
+				else
+					SelectedOption = Value
+					DropdownButton.Text = Value
+
+					if Callback and not SkipCallback then
+						Callback(Value)
+					end
 				end
 			end,
 			UpdateOptions = function(NewOptions)
-				Options = NewOptions or {}
-				if Multi then
-					local Valid = {}
-					for _, Item in ipairs(Selected) do
-						for _, Opt in ipairs(Options) do
-							if Item == Opt then table.insert(Valid, Item); break end
-						end
-					end
-					Selected = Valid
-				else
-					local Found = false
-					for _, Opt in ipairs(Options) do if Opt == SelectedOption then Found = true break end end
-					if not Found then SelectedOption = Options[1] or "None" end
-				end
-				DropBtn.Text = GetDisplayText()
+				OptionsList = NewOptions
 				RefreshOptions()
-				UpdateOpenSize()
 			end
 		}
+
 		return API
 	end
 
-	local function CreateKeybind(Parent, Label, DefaultKey, Callback, ToggleParentModule)
-		if IsTouchDevice then return nil end
+	local function CreateKeybind(Parent, KeybindConfig)
+		local Label = Pick(KeybindConfig, LabelAliases, "")
+		local DefaultKey = Pick(KeybindConfig, KeyAliases, nil)
+		local Callback = Pick(KeybindConfig, CallbackAliases, nil)
+		local ToggleParentModule = Pick(KeybindConfig, {"ToggleParentModule", "ToggleParent", "ToggleModule"}, nil)
+
+		if IsTouchDevice then
+			return nil
+		end
 
 		local Frame = Instance.new("Frame")
 		Frame.Size = UDim2.new(1, 0, 0, 26)
 		Frame.BackgroundTransparency = 1
 		Frame.Parent = Parent
 
-		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(1, -65, 1, 0)
-		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = Label
-		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-		TextLbl.Font = Enum.Font.GothamMedium
-		TextLbl.TextSize = 11
-		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-		TextLbl.Parent = Frame
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(1, -65, 1, 0)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = Label
+		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		TextLabel.Font = Enum.Font.GothamMedium
+		TextLabel.TextSize = 11
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TextLabel.Parent = Frame
 
-		local BindBtn = Instance.new("TextButton")
-		BindBtn.Size = UDim2.new(0, 60, 0, 18)
-		BindBtn.Position = UDim2.new(1, -60, 0, 4)
-		BindBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-		BindBtn.Text = DefaultKey and (typeof(DefaultKey) == "EnumItem" and DefaultKey.Name or tostring(DefaultKey)) or "None"
-		BindBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		BindBtn.Font = Enum.Font.GothamMedium
-		BindBtn.TextSize = 10
-		BindBtn.AutoButtonColor = false
-		BindBtn.Parent = Frame
-		Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 4)
+		local BindButton = Instance.new("TextButton")
+		BindButton.Size = UDim2.new(0, 60, 0, 18)
+		BindButton.Position = UDim2.new(1, -60, 0, 4)
+		BindButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		BindButton.Text = DefaultKey and (typeof(DefaultKey) == "EnumItem" and DefaultKey.Name or tostring(DefaultKey)) or "None"
+		BindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		BindButton.Font = Enum.Font.GothamMedium
+		BindButton.TextSize = 10
+		BindButton.AutoButtonColor = false
+		BindButton.Parent = Frame
+		Instance.new("UICorner", BindButton).CornerRadius = UDim.new(0, 4)
 
-		local BoundKey = typeof(DefaultKey) == "EnumItem" and DefaultKey or nil
+		local BoundKey = nil
+
+		if typeof(DefaultKey) == "EnumItem" then
+			BoundKey = DefaultKey
+		elseif type(DefaultKey) == "string" then
+			local Success, Key = pcall(function()
+				return Enum.KeyCode[DefaultKey]
+			end)
+
+			if Success and Key then
+				BoundKey = Key
+			end
+		end
+
 		local IsListening = false
 
-		BindBtn.MouseButton1Click:Connect(function()
+		BindButton.MouseButton1Click:Connect(function()
 			IsListening = true
-			BindBtn.Text = "[...]"
-			TweenService:Create(BindBtn, TweenInfo.new(Config.TweenTime), {
-				BackgroundColor3 = Config.ThemeColor
+			BindButton.Text = "[...]"
+			TweenService:Create(BindButton, TweenInfo.new(Configuration.TweenTime), {
+				BackgroundColor3 = Configuration.ThemeColor
 			}):Play()
 		end)
 
-		local InputConn
-		InputConn = UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+		local InputConnection
+		InputConnection = UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 			if IsListening then
 				if Input.UserInputType == Enum.UserInputType.Keyboard then
 					IsListening = false
-					TweenService:Create(BindBtn, TweenInfo.new(Config.TweenTime), {
+					TweenService:Create(BindButton, TweenInfo.new(Configuration.TweenTime), {
 						BackgroundColor3 = Color3.fromRGB(28, 28, 34)
 					}):Play()
+
 					if Input.KeyCode == Enum.KeyCode.Escape or Input.KeyCode == Enum.KeyCode.Backspace then
 						BoundKey = nil
-						BindBtn.Text = "None"
+						BindButton.Text = "None"
 					else
 						BoundKey = Input.KeyCode
-						BindBtn.Text = BoundKey.Name
+						BindButton.Text = BoundKey.Name
 					end
-					if Callback then Callback(BoundKey) end
+
+					if Callback then
+						Callback(BoundKey)
+					end
 				end
 			elseif BoundKey and Input.KeyCode == BoundKey and not GameProcessed then
-				if ToggleParentModule then ToggleParentModule() end
+				if ToggleParentModule then
+					ToggleParentModule()
+				end
 			end
 		end)
 
@@ -708,19 +768,47 @@ function Library.New(Options)
 				else
 					BoundKey = Key
 				end
-				BindBtn.Text = BoundKey and BoundKey.Name or "None"
-				if Callback and not SkipCallback then Callback(BoundKey) end
+
+				BindButton.Text = BoundKey and BoundKey.Name or "None"
+
+				if Callback and not SkipCallback then
+					Callback(BoundKey)
+				end
 			end,
 			Destroy = function()
-				if InputConn then InputConn:Disconnect() end
+				if InputConnection then
+					InputConnection:Disconnect()
+				end
 			end
 		}
 	end
 
-	local function CreateColorPicker(Parent, Label, DefaultColor, Callback, HasAlpha, OnResizeRequested)
-		DefaultColor = DefaultColor or Color3.fromRGB(255, 255, 255)
+	local function CreateColorPicker(Parent, ColorPickerConfig)
+		local Label = Pick(ColorPickerConfig, LabelAliases, "")
+		local RawDefaultColor = Pick(ColorPickerConfig, ColorAliases, Color3.fromRGB(255, 255, 255))
+		local Callback = Pick(ColorPickerConfig, CallbackAliases, nil)
+		local HasAlpha = PickBool(ColorPickerConfig, AlphaAliases, false)
+		local OnResizeRequested = Pick(ColorPickerConfig, OnResizeAliases, nil)
+
+		local DefaultColor = RawDefaultColor
 		local CurrentAlpha = 1
-		local H, S, V = Color3.toHSV(DefaultColor)
+
+		if type(RawDefaultColor) == "table" then
+			CurrentAlpha = RawDefaultColor.A or RawDefaultColor.a or 1
+			DefaultColor = Color3.new(RawDefaultColor.R or RawDefaultColor.r or 1, RawDefaultColor.G or RawDefaultColor.g or 1, RawDefaultColor.B or RawDefaultColor.b or 1)
+		elseif type(RawDefaultColor) == "string" then
+			local Success, ParsedColor = pcall(function()
+				return Color3.fromHex(RawDefaultColor)
+			end)
+
+			if Success and ParsedColor then
+				DefaultColor = ParsedColor
+			else
+				DefaultColor = Color3.fromRGB(255, 255, 255)
+			end
+		end
+
+		local HueValue, SaturationValue, BrightnessValue = Color3.toHSV(DefaultColor)
 
 		local MainContainer = Instance.new("Frame")
 		MainContainer.Size = UDim2.new(1, 0, 0, 26)
@@ -732,50 +820,50 @@ function Library.New(Options)
 		HeaderRow.BackgroundTransparency = 1
 		HeaderRow.Parent = MainContainer
 
-		local TextLbl = Instance.new("TextLabel")
-		TextLbl.Size = UDim2.new(1, -30, 1, 0)
-		TextLbl.BackgroundTransparency = 1
-		TextLbl.Text = Label
-		TextLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-		TextLbl.Font = Enum.Font.GothamMedium
-		TextLbl.TextSize = 11
-		TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-		TextLbl.Parent = HeaderRow
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(1, -30, 1, 0)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = Label
+		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		TextLabel.Font = Enum.Font.GothamMedium
+		TextLabel.TextSize = 11
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TextLabel.Parent = HeaderRow
 
-		local PreviewCheckerBg = Instance.new("Frame")
-		PreviewCheckerBg.Size = UDim2.new(0, 22, 0, 16)
-		PreviewCheckerBg.Position = UDim2.new(1, -22, 0, 5)
-		PreviewCheckerBg.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-		PreviewCheckerBg.Parent = HeaderRow
-		Instance.new("UICorner", PreviewCheckerBg).CornerRadius = UDim.new(0, 4)
+		local PreviewCheckerBackground = Instance.new("Frame")
+		PreviewCheckerBackground.Size = UDim2.new(0, 22, 0, 16)
+		PreviewCheckerBackground.Position = UDim2.new(1, -22, 0, 5)
+		PreviewCheckerBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+		PreviewCheckerBackground.Parent = HeaderRow
+		Instance.new("UICorner", PreviewCheckerBackground).CornerRadius = UDim.new(0, 4)
 
 		local CheckerInner = Instance.new("Frame")
 		CheckerInner.Size = UDim2.new(0.5, 0, 0.5, 0)
 		CheckerInner.Position = UDim2.new(0, 0, 0, 0)
 		CheckerInner.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 		CheckerInner.BorderSizePixel = 0
-		CheckerInner.Parent = PreviewCheckerBg
+		CheckerInner.Parent = PreviewCheckerBackground
 
 		local CheckerInner2 = Instance.new("Frame")
 		CheckerInner2.Size = UDim2.new(0.5, 0, 0.5, 0)
 		CheckerInner2.Position = UDim2.new(0.5, 0, 0.5, 0)
 		CheckerInner2.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
 		CheckerInner2.BorderSizePixel = 0
-		CheckerInner2.Parent = PreviewCheckerBg
+		CheckerInner2.Parent = PreviewCheckerBackground
 
-		local ColorPreviewBtn = Instance.new("TextButton")
-		ColorPreviewBtn.Size = UDim2.new(1, 0, 1, 0)
-		ColorPreviewBtn.BackgroundColor3 = DefaultColor
-		ColorPreviewBtn.Text = ""
-		ColorPreviewBtn.AutoButtonColor = false
-		ColorPreviewBtn.Parent = PreviewCheckerBg
-		Instance.new("UICorner", ColorPreviewBtn).CornerRadius = UDim.new(0, 4)
+		local ColorPreviewButton = Instance.new("TextButton")
+		ColorPreviewButton.Size = UDim2.new(1, 0, 1, 0)
+		ColorPreviewButton.BackgroundColor3 = DefaultColor
+		ColorPreviewButton.Text = ""
+		ColorPreviewButton.AutoButtonColor = false
+		ColorPreviewButton.Parent = PreviewCheckerBackground
+		Instance.new("UICorner", ColorPreviewButton).CornerRadius = UDim.new(0, 4)
 
 		local PreviewStroke = Instance.new("UIStroke")
 		PreviewStroke.Color = Color3.fromRGB(80, 80, 100)
 		PreviewStroke.Thickness = 1
 		PreviewStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		PreviewStroke.Parent = PreviewCheckerBg
+		PreviewStroke.Parent = PreviewCheckerBackground
 
 		local PanelHeight = HasAlpha and 195 or 170
 		local SatValHeight = 115
@@ -796,41 +884,41 @@ function Library.New(Options)
 		local SatValCanvas = Instance.new("TextButton")
 		SatValCanvas.Size = UDim2.new(1, -30, 0, SatValHeight)
 		SatValCanvas.Position = UDim2.new(0, 8, 0, 8)
-		SatValCanvas.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
+		SatValCanvas.BackgroundColor3 = Color3.fromHSV(HueValue, 1, 1)
 		SatValCanvas.BorderSizePixel = 0
 		SatValCanvas.Text = ""
 		SatValCanvas.AutoButtonColor = false
 		SatValCanvas.ClipsDescendants = true
 		SatValCanvas.Parent = PanelFrame
 
-		local WhiteGrad = Instance.new("Frame")
-		WhiteGrad.Size = UDim2.new(1, 0, 1, 0)
-		WhiteGrad.BackgroundTransparency = 0
-		WhiteGrad.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		WhiteGrad.BorderSizePixel = 0
-		WhiteGrad.Parent = SatValCanvas
+		local WhiteGradientFrame = Instance.new("Frame")
+		WhiteGradientFrame.Size = UDim2.new(1, 0, 1, 0)
+		WhiteGradientFrame.BackgroundTransparency = 0
+		WhiteGradientFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		WhiteGradientFrame.BorderSizePixel = 0
+		WhiteGradientFrame.Parent = SatValCanvas
 
-		local UIGradWhite = Instance.new("UIGradient")
-		UIGradWhite.Transparency = NumberSequence.new({
+		local UIGradientWhite = Instance.new("UIGradient")
+		UIGradientWhite.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 0),
 			NumberSequenceKeypoint.new(1, 1)
 		})
-		UIGradWhite.Parent = WhiteGrad
+		UIGradientWhite.Parent = WhiteGradientFrame
 
-		local BlackGrad = Instance.new("Frame")
-		BlackGrad.Size = UDim2.new(1, 0, 1, 0)
-		BlackGrad.BackgroundTransparency = 0
-		BlackGrad.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		BlackGrad.BorderSizePixel = 0
-		BlackGrad.Parent = SatValCanvas
+		local BlackGradientFrame = Instance.new("Frame")
+		BlackGradientFrame.Size = UDim2.new(1, 0, 1, 0)
+		BlackGradientFrame.BackgroundTransparency = 0
+		BlackGradientFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		BlackGradientFrame.BorderSizePixel = 0
+		BlackGradientFrame.Parent = SatValCanvas
 
-		local UIGradBlack = Instance.new("UIGradient")
-		UIGradBlack.Rotation = 90
-		UIGradBlack.Transparency = NumberSequence.new({
+		local UIGradientBlack = Instance.new("UIGradient")
+		UIGradientBlack.Rotation = 90
+		UIGradientBlack.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1),
 			NumberSequenceKeypoint.new(1, 0)
 		})
-		UIGradBlack.Parent = BlackGrad
+		UIGradientBlack.Parent = BlackGradientFrame
 
 		local Cursor = Instance.new("Frame")
 		Cursor.Size = UDim2.new(0, 8, 0, 8)
@@ -853,9 +941,9 @@ function Library.New(Options)
 		HueBar.AutoButtonColor = false
 		HueBar.Parent = PanelFrame
 
-		local HueGrad = Instance.new("UIGradient")
-		HueGrad.Rotation = 90
-		HueGrad.Color = ColorSequence.new({
+		local HueGradient = Instance.new("UIGradient")
+		HueGradient.Rotation = 90
+		HueGradient.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
 			ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
 			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
@@ -864,7 +952,7 @@ function Library.New(Options)
 			ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
 			ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0))
 		})
-		HueGrad.Parent = HueBar
+		HueGradient.Parent = HueBar
 
 		local HueCursor = Instance.new("Frame")
 		HueCursor.Size = UDim2.new(1, 4, 0, 4)
@@ -878,6 +966,7 @@ function Library.New(Options)
 		HueCursorStroke.Parent = HueCursor
 
 		local AlphaBar, AlphaCursor
+
 		if HasAlpha then
 			AlphaBar = Instance.new("TextButton")
 			AlphaBar.Size = UDim2.new(1, -16, 0, 10)
@@ -888,12 +977,12 @@ function Library.New(Options)
 			AlphaBar.AutoButtonColor = false
 			AlphaBar.Parent = PanelFrame
 
-			local AlphaGrad = Instance.new("UIGradient")
-			AlphaGrad.Color = ColorSequence.new({
+			local AlphaGradient = Instance.new("UIGradient")
+			AlphaGradient.Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
 				ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
 			})
-			AlphaGrad.Parent = AlphaBar
+			AlphaGradient.Parent = AlphaBar
 
 			AlphaCursor = Instance.new("Frame")
 			AlphaCursor.Size = UDim2.new(0, 4, 1, 4)
@@ -913,65 +1002,68 @@ function Library.New(Options)
 		BottomRow.BackgroundTransparency = 1
 		BottomRow.Parent = PanelFrame
 
-		local ModeBtn = Instance.new("TextButton")
-		ModeBtn.Size = UDim2.new(0, 40, 1, 0)
-		ModeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-		ModeBtn.Text = "HEX"
-		ModeBtn.TextColor3 = Config.ThemeColor
-		ModeBtn.Font = Enum.Font.GothamBold
-		ModeBtn.TextSize = 10
-		ModeBtn.AutoButtonColor = false
-		ModeBtn.Parent = BottomRow
-		Instance.new("UICorner", ModeBtn).CornerRadius = UDim.new(0, 4)
+		local ModeButton = Instance.new("TextButton")
+		ModeButton.Size = UDim2.new(0, 40, 1, 0)
+		ModeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+		ModeButton.Text = "HEX"
+		ModeButton.TextColor3 = Configuration.ThemeColor
+		ModeButton.Font = Enum.Font.GothamBold
+		ModeButton.TextSize = 10
+		ModeButton.AutoButtonColor = false
+		ModeButton.Parent = BottomRow
+		Instance.new("UICorner", ModeButton).CornerRadius = UDim.new(0, 4)
 
-		local InputBox = Instance.new("TextBox")
-		InputBox.Size = UDim2.new(1, -46, 1, 0)
-		InputBox.Position = UDim2.new(0, 46, 0, 0)
-		InputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
-		InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-		InputBox.Font = Enum.Font.Gotham
-		InputBox.TextSize = 10
-		InputBox.ClearTextOnFocus = false
-		InputBox.Parent = BottomRow
-		Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
+		local ColorInputBox = Instance.new("TextBox")
+		ColorInputBox.Size = UDim2.new(1, -46, 1, 0)
+		ColorInputBox.Position = UDim2.new(0, 46, 0, 0)
+		ColorInputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+		ColorInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+		ColorInputBox.Font = Enum.Font.Gotham
+		ColorInputBox.TextSize = 10
+		ColorInputBox.ClearTextOnFocus = false
+		ColorInputBox.Parent = BottomRow
+		Instance.new("UICorner", ColorInputBox).CornerRadius = UDim.new(0, 4)
 
 		local Modes = {"HEX", "RGB", "HSV"}
-		local ModeIdx = 1
+		local ModeIndex = 1
 		local IsExpanded = false
 
-		local function FormatText(Col, AlphaVal)
-			local CurrentMode = Modes[ModeIdx]
+		local function FormatText(ColorValue, AlphaValue)
+			local CurrentMode = Modes[ModeIndex]
+
 			if CurrentMode == "HEX" then
-				local Hex = Col:ToHex():upper()
-				return HasAlpha and string.format("#%s (%d%%)", Hex, math.floor(AlphaVal * 100)) or "#" .. Hex
+				local HexString = ColorValue:ToHex():upper()
+				return HasAlpha and string.format("#%s (%d%%)", HexString, math.floor(AlphaValue * 100)) or "#" .. HexString
 			elseif CurrentMode == "RGB" then
-				local R, G, B = math.floor(Col.R * 255), math.floor(Col.G * 255), math.floor(Col.B * 255)
-				return HasAlpha and string.format("%d, %d, %d, %.2f", R, G, B, AlphaVal) or string.format("%d, %d, %d", R, G, B)
+				local RedValue, GreenValue, BlueValue = math.floor(ColorValue.R * 255), math.floor(ColorValue.G * 255), math.floor(ColorValue.B * 255)
+				return HasAlpha and string.format("%d, %d, %d, %.2f", RedValue, GreenValue, BlueValue, AlphaValue) or string.format("%d, %d, %d", RedValue, GreenValue, BlueValue)
 			elseif CurrentMode == "HSV" then
-				local HueVal, SatVal, ValVal = Color3.toHSV(Col)
-				return string.format("%d, %d%%, %d%%", math.floor(HueVal * 360), math.floor(SatVal * 100), math.floor(ValVal * 100))
+				local HueText, SaturationText, BrightnessText = Color3.toHSV(ColorValue)
+				return string.format("%d, %d%%, %d%%", math.floor(HueText * 360), math.floor(SaturationText * 100), math.floor(BrightnessText * 100))
 			end
 		end
 
 		local function SyncDisplay(SkipCallback)
-			local FinalCol = Color3.fromHSV(H, S, V)
-			SatValCanvas.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
-			
-			TweenService:Create(ColorPreviewBtn, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-				BackgroundColor3 = FinalCol,
+			local FinalColor = Color3.fromHSV(HueValue, SaturationValue, BrightnessValue)
+			SatValCanvas.BackgroundColor3 = Color3.fromHSV(HueValue, 1, 1)
+
+			TweenService:Create(ColorPreviewButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				BackgroundColor3 = FinalColor,
 				BackgroundTransparency = 1 - CurrentAlpha
 			}):Play()
 
-			Cursor.Position = UDim2.new(S, 0, 1 - V, 0)
-			HueCursor.Position = UDim2.new(0.5, 0, H, 0)
+			Cursor.Position = UDim2.new(SaturationValue, 0, 1 - BrightnessValue, 0)
+			HueCursor.Position = UDim2.new(0.5, 0, HueValue, 0)
 
 			if HasAlpha and AlphaCursor then
 				AlphaCursor.Position = UDim2.new(CurrentAlpha, 0, 0.5, 0)
 			end
 
-			InputBox.Text = FormatText(FinalCol, CurrentAlpha)
+			ColorInputBox.Text = FormatText(FinalColor, CurrentAlpha)
 
-			if Callback and not SkipCallback then Callback(FinalCol, CurrentAlpha) end
+			if Callback and not SkipCallback then
+				Callback(FinalColor, CurrentAlpha)
+			end
 		end
 
 		local DraggingSatVal = false
@@ -979,25 +1071,25 @@ function Library.New(Options)
 		local DraggingAlpha = false
 
 		local function UpdateSatVal(Input)
-			local AbsPos = SatValCanvas.AbsolutePosition
-			local AbsSize = SatValCanvas.AbsoluteSize
-			S = math.clamp((Input.Position.X - AbsPos.X) / AbsSize.X, 0, 1)
-			V = 1 - math.clamp((Input.Position.Y - AbsPos.Y) / AbsSize.Y, 0, 1)
+			local AbsolutePosition = SatValCanvas.AbsolutePosition
+			local AbsoluteSize = SatValCanvas.AbsoluteSize
+			SaturationValue = math.clamp((Input.Position.X - AbsolutePosition.X) / AbsoluteSize.X, 0, 1)
+			BrightnessValue = 1 - math.clamp((Input.Position.Y - AbsolutePosition.Y) / AbsoluteSize.Y, 0, 1)
 			SyncDisplay()
 		end
 
 		local function UpdateHue(Input)
-			local AbsPos = HueBar.AbsolutePosition
-			local AbsSize = HueBar.AbsoluteSize
-			H = math.clamp((Input.Position.Y - AbsPos.Y) / AbsSize.Y, 0, 1)
+			local AbsolutePosition = HueBar.AbsolutePosition
+			local AbsoluteSize = HueBar.AbsoluteSize
+			HueValue = math.clamp((Input.Position.Y - AbsolutePosition.Y) / AbsoluteSize.Y, 0, 1)
 			SyncDisplay()
 		end
 
 		local function UpdateAlpha(Input)
 			if not HasAlpha or not AlphaBar then return end
-			local AbsPos = AlphaBar.AbsolutePosition
-			local AbsSize = AlphaBar.AbsoluteSize
-			CurrentAlpha = math.clamp((Input.Position.X - AbsPos.X) / AbsSize.X, 0, 1)
+			local AbsolutePosition = AlphaBar.AbsolutePosition
+			local AbsoluteSize = AlphaBar.AbsoluteSize
+			CurrentAlpha = math.clamp((Input.Position.X - AbsolutePosition.X) / AbsoluteSize.X, 0, 1)
 			SyncDisplay()
 		end
 
@@ -1044,49 +1136,53 @@ function Library.New(Options)
 			end
 		end)
 
-		ModeBtn.MouseButton1Click:Connect(function()
-			ModeIdx = ModeIdx % #Modes + 1
-			ModeBtn.Text = Modes[ModeIdx]
-			InputBox.Text = FormatText(Color3.fromHSV(H, S, V), CurrentAlpha)
+		ModeButton.MouseButton1Click:Connect(function()
+			ModeIndex = ModeIndex % #Modes + 1
+			ModeButton.Text = Modes[ModeIndex]
+			ColorInputBox.Text = FormatText(Color3.fromHSV(HueValue, SaturationValue, BrightnessValue), CurrentAlpha)
 		end)
 
-		InputBox.FocusLost:Connect(function()
-			local Text = InputBox.Text
-			local Mode = Modes[ModeIdx]
-			if Mode == "HEX" then
-				local HexClean = Text:gsub("#", ""):gsub("%s.*", "")
-				local Success, Col = pcall(function() return Color3.fromHex(HexClean) end)
-				if Success and Col then H, S, V = Color3.toHSV(Col) end
-			elseif Mode == "RGB" then
-				local R, G, B = Text:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
-				if R and G and B then
-					local Col = Color3.fromRGB(tonumber(R), tonumber(G), tonumber(B))
-					H, S, V = Color3.toHSV(Col)
+		ColorInputBox.FocusLost:Connect(function()
+			local TextInput = ColorInputBox.Text
+			local CurrentMode = Modes[ModeIndex]
+
+			if CurrentMode == "HEX" then
+				local HexClean = TextInput:gsub("#", ""):gsub("%s.*", "")
+				local Success, ParsedColor = pcall(function() return Color3.fromHex(HexClean) end)
+				if Success and ParsedColor then
+					HueValue, SaturationValue, BrightnessValue = Color3.toHSV(ParsedColor)
 				end
-			elseif Mode == "HSV" then
-				local HueText, SatText, ValText = Text:match("(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%")
-				if HueText and SatText and ValText then
-					H = math.clamp(tonumber(HueText) / 360, 0, 1)
-					S = math.clamp(tonumber(SatText) / 100, 0, 1)
-					V = math.clamp(tonumber(ValText) / 100, 0, 1)
+			elseif CurrentMode == "RGB" then
+				local RedText, GreenText, BlueText = TextInput:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
+				if RedText and GreenText and BlueText then
+					local ParsedColor = Color3.fromRGB(tonumber(RedText), tonumber(GreenText), tonumber(BlueText))
+					HueValue, SaturationValue, BrightnessValue = Color3.toHSV(ParsedColor)
+				end
+			elseif CurrentMode == "HSV" then
+				local HueText, SaturationText, BrightnessText = TextInput:match("(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%")
+				if HueText and SaturationText and BrightnessText then
+					HueValue = math.clamp(tonumber(HueText) / 360, 0, 1)
+					SaturationValue = math.clamp(tonumber(SaturationText) / 100, 0, 1)
+					BrightnessValue = math.clamp(tonumber(BrightnessText) / 100, 0, 1)
 				end
 			end
+
 			SyncDisplay()
 		end)
 
-		ColorPreviewBtn.MouseButton1Click:Connect(function()
+		ColorPreviewButton.MouseButton1Click:Connect(function()
 			IsExpanded = not IsExpanded
 			PanelFrame.Visible = IsExpanded
 			local TargetHeight = IsExpanded and (PanelHeight + 36) or 26
-			
-			TweenService:Create(MainContainer, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+
+			TweenService:Create(MainContainer, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 				Size = UDim2.new(1, 0, 0, TargetHeight)
 			}):Play()
 
 			if OnResizeRequested then
 				task.spawn(function()
 					local StartTime = tick()
-					while tick() - StartTime < Config.TweenTime + 0.05 do
+					while tick() - StartTime < Configuration.TweenTime + 0.05 do
 						OnResizeRequested()
 						task.wait()
 					end
@@ -1098,51 +1194,59 @@ function Library.New(Options)
 		SyncDisplay(true)
 
 		return {
-			Get = function() 
-				local col = Color3.fromHSV(H, S, V)
-				return {R = col.R, G = col.G, B = col.B, A = CurrentAlpha}
+			Get = function()
+				local ColorResult = Color3.fromHSV(HueValue, SaturationValue, BrightnessValue)
+				return {R = ColorResult.R, G = ColorResult.G, B = ColorResult.B, A = CurrentAlpha}
 			end,
-			Set = function(NewCol, NewAlpha, SkipCallback)
-				if type(NewCol) == "table" then
-					NewAlpha = NewCol.A or 1
-					NewCol = Color3.new(NewCol.R, NewCol.G, NewCol.B)
+			Set = function(NewColor, NewAlpha, SkipCallback)
+				if type(NewColor) == "table" then
+					NewAlpha = NewColor.A or 1
+					NewColor = Color3.new(NewColor.R, NewColor.G, NewColor.B)
 				end
-				H, S, V = Color3.toHSV(NewCol)
-				if NewAlpha then CurrentAlpha = NewAlpha end
+
+				HueValue, SaturationValue, BrightnessValue = Color3.toHSV(NewColor)
+
+				if NewAlpha then
+					CurrentAlpha = NewAlpha
+				end
+
 				SyncDisplay(SkipCallback)
 			end
 		}
 	end
 
 	local ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.Name = Config.Name .. "GUI"
+	ScreenGui.Name = Configuration.Name .. "GUI"
 	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.DisplayOrder = 999
 	ScreenGui.Parent = GetGuiParent()
 
 	local PanelsList = {}
 	local ArePanelsVisible = true
-	local CategoryCount = 0
+	local CategoryX = Configuration.CategoryStartX
+	local CategoryY = Configuration.CategoryStartY
 
 	local function CreateCategory(Name)
-		if type(Name) == "table" then
-			Name = Name.Name or Name.Title or Name[1] or "Category"
+		local ViewportSize = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+
+		if Configuration.CategoryWrap and CategoryX + Configuration.PanelWidth > ViewportSize.X - Configuration.CategoryStartX then
+			CategoryX = Configuration.CategoryStartX
+			CategoryY = CategoryY + Configuration.HeaderHeight + Configuration.CategorySpacing
 		end
-		Name = tostring(Name or "Category")
-		local XPos = Config.CategoryLeft + (CategoryCount * (Config.PanelWidth + Config.CategoryGap))
-		CategoryCount = CategoryCount + 1
+
+		local ThisX, ThisY = CategoryX, CategoryY
+		CategoryX = CategoryX + Configuration.PanelWidth + Configuration.CategorySpacing
 
 		local Panel = Instance.new("Frame")
-		Panel.Size = UDim2.new(0, Config.PanelWidth, 0, Config.HeaderHeight)
-		Panel.Position = UDim2.new(0, XPos, 0, Config.CategoryTop)
-		Panel.BackgroundColor3 = Config.BackgroundColor
+		Panel.Size = UDim2.new(0, Configuration.PanelWidth, 0, Configuration.HeaderHeight)
+		Panel.Position = UDim2.new(0, ThisX, 0, ThisY)
+		Panel.BackgroundColor3 = Configuration.BackgroundColor
 		Panel.BackgroundTransparency = 0.15
 		Panel.ClipsDescendants = true
-		Panel.ZIndex = 2
 		Panel.Parent = ScreenGui
 		table.insert(PanelsList, Panel)
 
-		Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 6)
+		Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, Configuration.CornerRadius)
 
 		local PanelStroke = Instance.new("UIStroke")
 		PanelStroke.Color = Color3.fromRGB(35, 35, 45)
@@ -1150,15 +1254,14 @@ function Library.New(Options)
 		PanelStroke.Parent = Panel
 
 		local Header = Instance.new("Frame")
-		Header.Size = UDim2.new(1, 0, 0, Config.HeaderHeight)
-		Header.BackgroundColor3 = Config.HeaderColor
+		Header.Size = UDim2.new(1, 0, 0, Configuration.HeaderHeight)
+		Header.BackgroundColor3 = Configuration.HeaderColor
 		Header.BackgroundTransparency = 0.1
-		Header.ZIndex = 3
 		Header.Parent = Panel
-		Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 6)
+		Instance.new("UICorner", Header).CornerRadius = UDim.new(0, Configuration.CornerRadius)
 
 		local HeaderTitle = Instance.new("TextLabel")
-		HeaderTitle.Size = UDim2.new(1, -38, 1, 0)
+		HeaderTitle.Size = UDim2.new(1, -32, 1, 0)
 		HeaderTitle.Position = UDim2.new(0, 12, 0, 0)
 		HeaderTitle.BackgroundTransparency = 1
 		HeaderTitle.Text = Name
@@ -1166,16 +1269,22 @@ function Library.New(Options)
 		HeaderTitle.Font = Enum.Font.GothamBold
 		HeaderTitle.TextSize = 12
 		HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-		HeaderTitle.ZIndex = 4
 		HeaderTitle.Parent = Header
 
-		local CategoryChevron = CreateChevron(Header, 10, 2)
-		CategoryChevron.Holder.ZIndex = 5
-		CategoryChevron.Holder.Position = UDim2.new(1, -12, 0.5, 0)
+		local ArrowLabel = Instance.new("TextLabel")
+		ArrowLabel.Size = UDim2.new(0, 20, 1, 0)
+		ArrowLabel.Position = UDim2.new(1, -24, 0, 0)
+		ArrowLabel.BackgroundTransparency = 1
+		ArrowLabel.Text = ">"
+		ArrowLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		ArrowLabel.Font = Enum.Font.GothamBold
+		ArrowLabel.TextSize = 13
+		ArrowLabel.Rotation = -90
+		ArrowLabel.Parent = Header
 
 		local Content = Instance.new("Frame")
 		Content.Size = UDim2.new(1, -16, 0, 0)
-		Content.Position = UDim2.new(0, 8, 0, Config.HeaderHeight + 6)
+		Content.Position = UDim2.new(0, 8, 0, Configuration.HeaderHeight + 6)
 		Content.BackgroundTransparency = 1
 		Content.Parent = Panel
 
@@ -1188,18 +1297,22 @@ function Library.New(Options)
 		local IsExpanded = false
 
 		local function UpdatePanelHeight()
+			TweenService:Create(ArrowLabel, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Rotation = IsExpanded and 90 or -90
+			}):Play()
+
 			if not IsExpanded then
 				Content.Visible = false
-				TweenService:Create(Panel, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-					Size = UDim2.new(0, Config.PanelWidth, 0, Config.HeaderHeight)
+				TweenService:Create(Panel, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+					Size = UDim2.new(0, Configuration.PanelWidth, 0, Configuration.HeaderHeight)
 				}):Play()
 				return
 			end
 
 			Content.Visible = true
 			local ContentHeight = ListLayout.AbsoluteContentSize.Y
-			TweenService:Create(Panel, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, Config.PanelWidth, 0, Config.HeaderHeight + ContentHeight + 12)
+			TweenService:Create(Panel, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Size = UDim2.new(0, Configuration.PanelWidth, 0, Configuration.HeaderHeight + ContentHeight + 12)
 			}):Play()
 		end
 
@@ -1207,52 +1320,50 @@ function Library.New(Options)
 
 		MakeDraggable(Header, Panel, function()
 			IsExpanded = not IsExpanded
-			CategoryChevron.SetDirection(IsExpanded and "up" or "down")
 			UpdatePanelHeight()
 		end)
 
 		local ModuleCount = 0
 
-		local function AddModule(Opts)
-			local ModName = Opts.Name
-			local SettingsTable = Opts.Settings or Opts.SettingsTable
-			local ModuleCallback = Opts.Callback
-			local ConfigFlag = Opts.Flag
-			local IsActionButton = Opts.IsActionButton or false
+		local function AddModule(ModuleOptions)
+			local ModuleName = Pick(ModuleOptions, LabelAliases, "Module")
+			local SettingsTable = Pick(ModuleOptions, SettingsAliases, nil)
+			local ModuleCallback = Pick(ModuleOptions, CallbackAliases, nil)
+			local ConfigFlag = Pick(ModuleOptions, FlagAliases, nil)
+			local IsActionButton = PickBool(ModuleOptions, {"IsActionButton", "ActionButton", "Button", "Action", "IsButton"}, false)
 
-			local ModFrame = Instance.new("Frame")
-			ModFrame.Size = UDim2.new(1, 0, 0, Config.ModuleHeight)
-			ModFrame.BackgroundTransparency = 1
-			ModFrame.LayoutOrder = ModuleCount
-			ModFrame.Parent = Content
+			local ModuleFrame = Instance.new("Frame")
+			ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
+			ModuleFrame.BackgroundTransparency = 1
+			ModuleFrame.LayoutOrder = ModuleCount
+			ModuleFrame.Parent = Content
 
-			local ModLayout = Instance.new("UIListLayout")
-			ModLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			ModLayout.Padding = UDim.new(0, 4)
-			ModLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-			ModLayout.Parent = ModFrame
+			local ModuleLayout = Instance.new("UIListLayout")
+			ModuleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			ModuleLayout.Padding = UDim.new(0, 4)
+			ModuleLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+			ModuleLayout.Parent = ModuleFrame
 
 			local Row = Instance.new("Frame")
-			Row.Size = UDim2.new(1, 0, 0, Config.ModuleHeight)
+			Row.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
 			Row.BackgroundTransparency = 1
 			Row.LayoutOrder = 0
-			Row.Parent = ModFrame
+			Row.Parent = ModuleFrame
 
-			local HasSettings = SettingsTable and #SettingsTable > 0
+			local HasSettings = SettingsTable and type(SettingsTable) == "table" and #SettingsTable > 0
 
-			local ModBtn = Instance.new("TextButton")
-			ModBtn.Size = HasSettings and UDim2.new(1, -26, 1, 0) or UDim2.new(1, 0, 1, 0)
-			ModBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-			ModBtn.BackgroundTransparency = 0.2
-			ModBtn.Text = "  " .. ModName
-			ModBtn.TextColor3 = Color3.fromRGB(210, 210, 215)
-			ModBtn.TextXAlignment = Enum.TextXAlignment.Left
-			ModBtn.Font = Enum.Font.GothamMedium
-			ModBtn.TextSize = 11
-			ModBtn.AutoButtonColor = false
-			ModBtn.Selectable = false
-			ModBtn.Parent = Row
-			Instance.new("UICorner", ModBtn).CornerRadius = UDim.new(0, 4)
+			local ModuleButton = Instance.new("TextButton")
+			ModuleButton.Size = HasSettings and UDim2.new(1, -26, 1, 0) or UDim2.new(1, 0, 1, 0)
+			ModuleButton.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+			ModuleButton.BackgroundTransparency = 0.2
+			ModuleButton.Text = "  " .. ModuleName
+			ModuleButton.TextColor3 = Color3.fromRGB(210, 210, 215)
+			ModuleButton.TextXAlignment = Enum.TextXAlignment.Left
+			ModuleButton.Font = Enum.Font.GothamMedium
+			ModuleButton.TextSize = 11
+			ModuleButton.AutoButtonColor = false
+			ModuleButton.Parent = Row
+			Instance.new("UICorner", ModuleButton).CornerRadius = UDim.new(0, 4)
 
 			local SettingControls = {}
 			local SettingsFrame = nil
@@ -1265,11 +1376,12 @@ function Library.New(Options)
 
 			local function SetModuleState(State, SkipCallback)
 				Toggled = State
-				TweenService:Create(ModBtn, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-					BackgroundColor3 = Toggled and Config.ThemeColor or Color3.fromRGB(24, 24, 28),
+				TweenService:Create(ModuleButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+					BackgroundColor3 = Toggled and Configuration.ThemeColor or Color3.fromRGB(24, 24, 28),
 					BackgroundTransparency = Toggled and 0.1 or 0.2
 				}):Play()
-				ModBtn.TextColor3 = Toggled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(210, 210, 215)
+				ModuleButton.TextColor3 = Toggled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(210, 210, 215)
+
 				if ModuleCallback and not SkipCallback then
 					ModuleCallback(Toggled)
 				end
@@ -1279,25 +1391,24 @@ function Library.New(Options)
 				if not SettingsVisible or not SettingsFrame then return end
 				local SettingsHeight = SettingsFrame:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y + 8
 				SettingsFrame.Size = UDim2.new(1, 0, 0, SettingsHeight)
-				ModFrame.Size = UDim2.new(1, 0, 0, Config.ModuleHeight + SettingsHeight + 4)
+				ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight + SettingsHeight + 4)
 				UpdatePanelHeight()
 			end
 
 			if HasSettings then
-				local GearBtn = Instance.new("TextButton")
-				GearBtn.Size = UDim2.new(0, 22, 0, 22)
-				GearBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-				GearBtn.Position = UDim2.new(1, -11, 0.5, 0)
-				GearBtn.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-				GearBtn.BackgroundTransparency = 0.3
-				GearBtn.Text = "⚙"
-				GearBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-				GearBtn.Font = Enum.Font.GothamBold
-				GearBtn.TextSize = 11
-				GearBtn.AutoButtonColor = false
-				GearBtn.Selectable = false
-				GearBtn.Parent = Row
-				Instance.new("UICorner", GearBtn).CornerRadius = UDim.new(0, 4)
+				local GearButton = Instance.new("TextButton")
+				GearButton.Size = UDim2.new(0, 22, 0, 22)
+				GearButton.AnchorPoint = Vector2.new(0.5, 0.5)
+				GearButton.Position = UDim2.new(1, -11, 0.5, 0)
+				GearButton.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+				GearButton.BackgroundTransparency = 0.3
+				GearButton.Text = "⚙"
+				GearButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+				GearButton.Font = Enum.Font.GothamBold
+				GearButton.TextSize = 11
+				GearButton.AutoButtonColor = false
+				GearButton.Parent = Row
+				Instance.new("UICorner", GearButton).CornerRadius = UDim.new(0, 4)
 
 				SettingsFrame = Instance.new("Frame")
 				SettingsFrame.Size = UDim2.new(1, 0, 0, 0)
@@ -1305,7 +1416,7 @@ function Library.New(Options)
 				SettingsFrame.BackgroundTransparency = 0.1
 				SettingsFrame.LayoutOrder = 1
 				SettingsFrame.Visible = false
-				SettingsFrame.Parent = ModFrame
+				SettingsFrame.Parent = ModuleFrame
 				Instance.new("UICorner", SettingsFrame).CornerRadius = UDim.new(0, 4)
 
 				local SettingsLayout = Instance.new("UIListLayout")
@@ -1314,16 +1425,19 @@ function Library.New(Options)
 				SettingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 				SettingsLayout.Parent = SettingsFrame
 
-				local Pad = Instance.new("UIPadding")
-				Pad.PaddingTop = UDim.new(0, 4)
-				Pad.PaddingBottom = UDim.new(0, 4)
-				Pad.PaddingLeft = UDim.new(0, 6)
-				Pad.PaddingRight = UDim.new(0, 6)
-				Pad.Parent = SettingsFrame
+				local Padding = Instance.new("UIPadding")
+				Padding.PaddingTop = UDim.new(0, 4)
+				Padding.PaddingBottom = UDim.new(0, 4)
+				Padding.PaddingLeft = UDim.new(0, 6)
+				Padding.PaddingRight = UDim.new(0, 6)
+				Padding.Parent = SettingsFrame
 
 				for _, Setting in ipairs(SettingsTable) do
 					local Control
-					local OriginalCallback = Setting.Callback
+					local SettingType = NormalizeKeyName(Pick(Setting, TypeAliases, ""))
+					local SettingName = Pick(Setting, LabelAliases, "")
+					local SettingFlag = Pick(Setting, FlagAliases, nil)
+					local OriginalCallback = Pick(Setting, CallbackAliases, nil)
 
 					local ProtectedCallback = function(...)
 						if IsEnabled() and OriginalCallback then
@@ -1331,74 +1445,102 @@ function Library.New(Options)
 						end
 					end
 
-					if Setting.Type == "Toggle" then
-						Control = CreateToggle(SettingsFrame, Setting.Name, Setting.Default, ProtectedCallback)
-					elseif Setting.Type == "Slider" then
-						Control = CreateSlider(SettingsFrame, Setting.Name, Setting.Min, Setting.Max, Setting.Default, Setting.Step, Config.ThemeColor, ProtectedCallback)
-					elseif Setting.Type == "TextBox" then
-						Control = CreateTextBox(SettingsFrame, Setting.Name, Setting.Default, ProtectedCallback, Setting.Placeholder)
-					elseif Setting.Type == "Dropdown" then
-						Control = CreateDropdown(
-							SettingsFrame,
-							Setting.Name,
-							Setting.Options,
-							Setting.Default,
-							ProtectedCallback,
-							RefreshSettingsHeight,
-							Setting.Multi == true or Setting.multi == true
-						)
-					elseif Setting.Type == "KeybindToggle" or Setting.Type == "Keybind" then
-						Control = CreateKeybind(SettingsFrame, Setting.Name, Setting.Default, ProtectedCallback, function()
-							SetModuleState(not Toggled)
-						end)
-					elseif Setting.Type == "ColorPicker" or Setting.Type == "Color" then
-						Control = CreateColorPicker(SettingsFrame, Setting.Name, Setting.Default, ProtectedCallback, Setting.HasAlpha, RefreshSettingsHeight)
+					if SettingType == "toggle" or SettingType == "switch" or SettingType == "bool" or SettingType == "boolean" or SettingType == "checkbox" then
+						Control = CreateToggle(SettingsFrame, {
+							Label = SettingName,
+							Default = Pick(Setting, ToggleDefaultAliases, false),
+							Callback = ProtectedCallback
+						})
+					elseif SettingType == "slider" or SettingType == "slide" or SettingType == "range" or SettingType == "sliderbar" then
+						Control = CreateSlider(SettingsFrame, {
+							Label = SettingName,
+							Min = PickNumber(Setting, MinAliases, 0),
+							Max = PickNumber(Setting, MaxAliases, 100),
+							Default = PickNumber(Setting, DefaultAliases, 0),
+							Step = PickNumber(Setting, StepAliases, 0.5),
+							Theme = Pick(Setting, ThemeAliases, Configuration.ThemeColor),
+							Callback = ProtectedCallback
+						})
+					elseif SettingType == "textbox" or SettingType == "text" or SettingType == "input" or SettingType == "box" or SettingType == "string" then
+						Control = CreateTextBox(SettingsFrame, {
+							Label = SettingName,
+							Default = Pick(Setting, DefaultAliases, ""),
+							Callback = ProtectedCallback,
+							Placeholder = Pick(Setting, PlaceholderAliases, ""),
+							Numeric = PickBool(Setting, NumericAliases, false)
+						})
+					elseif SettingType == "dropdown" or SettingType == "drop" or SettingType == "select" or SettingType == "combobox" or SettingType == "combo" or SettingType == "list" then
+						Control = CreateDropdown(SettingsFrame, {
+							Label = SettingName,
+							Options = Pick(Setting, OptionsAliases, {}),
+							Default = Pick(Setting, DefaultAliases, nil),
+							Callback = ProtectedCallback,
+							OnResizeRequested = RefreshSettingsHeight,
+							Multi = PickBool(Setting, MultiAliases, false)
+						})
+					elseif SettingType == "keybindtoggle" or SettingType == "keybind" or SettingType == "key" or SettingType == "bind" or SettingType == "hotkey" then
+						Control = CreateKeybind(SettingsFrame, {
+							Label = SettingName,
+							DefaultKey = Pick(Setting, KeyAliases, nil),
+							Callback = ProtectedCallback,
+							ToggleParentModule = function()
+								SetModuleState(not Toggled)
+							end
+						})
+					elseif SettingType == "colorpicker" or SettingType == "color" or SettingType == "colour" or SettingType == "colourpicker" then
+						Control = CreateColorPicker(SettingsFrame, {
+							Label = SettingName,
+							DefaultColor = Pick(Setting, ColorAliases, Color3.fromRGB(255, 255, 255)),
+							Callback = ProtectedCallback,
+							HasAlpha = PickBool(Setting, AlphaAliases, false),
+							OnResizeRequested = RefreshSettingsHeight
+						})
 					end
 
 					if Control then
-						SettingControls[Setting.Name] = Control
-						if Setting.Flag then
-							FlagRegistry[Setting.Flag] = Control
+						SettingControls[SettingName] = Control
+						if SettingFlag then
+							FlagRegistry[SettingFlag] = Control
 						end
 					end
 				end
 
-				GearBtn.MouseButton1Click:Connect(function()
+				GearButton.MouseButton1Click:Connect(function()
 					SettingsVisible = not SettingsVisible
 					SettingsFrame.Visible = SettingsVisible
 
 					local TargetRotation = SettingsVisible and 180 or 0
-					TweenService:Create(GearBtn, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+					TweenService:Create(GearButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 						Rotation = TargetRotation
 					}):Play()
 
 					if SettingsVisible then
 						RefreshSettingsHeight()
 					else
-						ModFrame.Size = UDim2.new(1, 0, 0, Config.ModuleHeight)
+						ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
 						UpdatePanelHeight()
 					end
 				end)
 			end
 
-			ModBtn.MouseButton1Click:Connect(function()
+			ModuleButton.MouseButton1Click:Connect(function()
 				if IsActionButton then
-					TweenService:Create(ModBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-						BackgroundColor3 = Config.ThemeColor,
+					TweenService:Create(ModuleButton, TweenInfo.new(0.08, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+						BackgroundColor3 = Configuration.ThemeColor,
 						BackgroundTransparency = 0.1
 					}):Play()
-					ModBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+					ModuleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 					if ModuleCallback then
 						ModuleCallback(true)
 					end
 
 					task.delay(0.2, function()
-						TweenService:Create(ModBtn, TweenInfo.new(Config.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+						TweenService:Create(ModuleButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 							BackgroundColor3 = Color3.fromRGB(24, 24, 28),
 							BackgroundTransparency = 0.2
 						}):Play()
-						ModBtn.TextColor3 = Color3.fromRGB(210, 210, 215)
+						ModuleButton.TextColor3 = Color3.fromRGB(210, 210, 215)
 					end)
 				else
 					SetModuleState(not Toggled)
@@ -1410,16 +1552,16 @@ function Library.New(Options)
 			local ModuleAPI = {
 				IsEnabled = IsEnabled,
 				SetEnabled = SetModuleState,
-				GetSetting = function(SName)
-					return SettingControls[SName] and SettingControls[SName].Get()
+				GetSetting = function(SettingName)
+					return SettingControls[SettingName] and SettingControls[SettingName].Get()
 				end,
-				SetSetting = function(SName, Value, AlphaVal)
-					if SettingControls[SName] then
-						SettingControls[SName].Set(Value, AlphaVal, true)
+				SetSetting = function(SettingName, Value, AlphaValue)
+					if SettingControls[SettingName] then
+						SettingControls[SettingName].Set(Value, AlphaValue, true)
 					end
 				end,
 				Get = IsEnabled,
-				Set = function(Val, SkipCallback) SetModuleState(Val, SkipCallback) end
+				Set = function(Value, SkipCallback) SetModuleState(Value, SkipCallback) end
 			}
 
 			if ConfigFlag then
@@ -1429,278 +1571,310 @@ function Library.New(Options)
 			return ModuleAPI
 		end
 
-		local function AddTextBoxModule(Opts)
-			local ModName = Opts.Name
-			local Default = Opts.Default
-			local Placeholder = Opts.Placeholder
-			local Callback = Opts.Callback
-			local Flag = Opts.Flag
+		local function AddTextBoxModule(ModuleOptions)
+			local ModuleName = Pick(ModuleOptions, LabelAliases, "")
+			local DefaultValue = Pick(ModuleOptions, DefaultAliases, "")
+			local PlaceholderText = Pick(ModuleOptions, PlaceholderAliases, "")
+			local Callback = Pick(ModuleOptions, CallbackAliases, nil)
+			local Flag = Pick(ModuleOptions, FlagAliases, nil)
+			local NumericOnly = PickBool(ModuleOptions, NumericAliases, false)
 
-			local ModFrame = Instance.new("Frame")
-			ModFrame.Size = UDim2.new(1, 0, 0, Config.ModuleHeight)
-			ModFrame.BackgroundTransparency = 1
-			ModFrame.LayoutOrder = ModuleCount
-			ModFrame.Parent = Content
+			local ModuleFrame = Instance.new("Frame")
+			ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
+			ModuleFrame.BackgroundTransparency = 1
+			ModuleFrame.LayoutOrder = ModuleCount
+			ModuleFrame.Parent = Content
 
-			local TextLbl = Instance.new("TextLabel")
-			TextLbl.Size = UDim2.new(1, -70, 1, 0)
-			TextLbl.Position = UDim2.new(0, 4, 0, 0)
-			TextLbl.BackgroundTransparency = 1
-			TextLbl.Text = ModName
-			TextLbl.TextColor3 = Color3.fromRGB(210, 210, 215)
-			TextLbl.Font = Enum.Font.GothamMedium
-			TextLbl.TextSize = 11
-			TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-			TextLbl.Parent = ModFrame
+			local TextLabel = Instance.new("TextLabel")
+			TextLabel.Size = UDim2.new(1, -70, 1, 0)
+			TextLabel.Position = UDim2.new(0, 4, 0, 0)
+			TextLabel.BackgroundTransparency = 1
+			TextLabel.Text = ModuleName
+			TextLabel.TextColor3 = Color3.fromRGB(210, 210, 215)
+			TextLabel.Font = Enum.Font.GothamMedium
+			TextLabel.TextSize = 11
+			TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+			TextLabel.Parent = ModuleFrame
 
-			local Box = Instance.new("TextBox")
-			Box.Size = UDim2.new(0, 65, 0, 20)
-			Box.Position = UDim2.new(1, -65, 0, 4)
-			Box.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-			Box.Text = tostring(Default or "")
-			Box.PlaceholderText = Placeholder or ""
-			Box.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-			Box.TextColor3 = Color3.fromRGB(255, 255, 255)
-			Box.Font = Enum.Font.Gotham
-			Box.TextSize = 10
-			Box.ClearTextOnFocus = false
-			Box.Parent = ModFrame
-			Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 4)
+			local InputBox = Instance.new("TextBox")
+			InputBox.Size = UDim2.new(0, 65, 0, 20)
+			InputBox.Position = UDim2.new(1, -65, 0, 4)
+			InputBox.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+			InputBox.Text = tostring(DefaultValue or "")
+			InputBox.PlaceholderText = PlaceholderText or ""
+			InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+			InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+			InputBox.Font = Enum.Font.Gotham
+			InputBox.TextSize = 10
+			InputBox.ClearTextOnFocus = false
+			InputBox.Parent = ModuleFrame
+			Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
 
-			Box.FocusLost:Connect(function()
-				if Callback then Callback(Box.Text) end
+			if NumericOnly then
+				InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+					local FilteredText = InputBox.Text:gsub("[^%d%.%-]", "")
+					local DecimalCount = select(2, FilteredText:gsub("%.", ""))
+					local MinusCount = select(2, FilteredText:gsub("%-", ""))
+
+					if DecimalCount > 1 then
+						FilteredText = FilteredText:match("^(.-)%..*$") .. "." .. FilteredText:match("^.*%.(.+)$"):gsub("%.", "")
+					end
+
+					if MinusCount > 1 or (MinusCount == 1 and FilteredText:sub(1,1) ~= "-") then
+						FilteredText = FilteredText:gsub("%-", "")
+					end
+
+					if FilteredText ~= InputBox.Text then
+						InputBox.Text = FilteredText
+					end
+				end)
+			end
+
+			InputBox.FocusLost:Connect(function()
+				if Callback then
+					if NumericOnly then
+						Callback(tonumber(InputBox.Text) or 0)
+					else
+						Callback(InputBox.Text)
+					end
+				end
 			end)
 
 			ModuleCount = ModuleCount + 1
 
 			local API = {
-				Get = function() return Box.Text end,
-				Set = function(Val, SkipCallback)
-					Box.Text = tostring(Val)
-					if Callback and not SkipCallback then Callback(Box.Text) end
+				Get = function()
+					if NumericOnly then return tonumber(InputBox.Text) or 0 end
+					return InputBox.Text
+				end,
+				Set = function(Value, SkipCallback)
+					InputBox.Text = tostring(Value)
+					if Callback and not SkipCallback then
+						if NumericOnly then
+							Callback(tonumber(InputBox.Text) or 0)
+						else
+							Callback(InputBox.Text)
+						end
+					end
 				end
 			}
 
-			if Flag then FlagRegistry[Flag] = API end
+			if Flag then
+				FlagRegistry[Flag] = API
+			end
+
 			return API
 		end
 
-		local function AddDropdownModule(Opts)
-			local ModName = Opts.Name
-			local OptionsList = Opts.Options or {}
-			local Default = Opts.Default
-			local Callback = Opts.Callback
-			local Flag = Opts.Flag
-			local Multi = Opts.Multi == true or Opts.multi == true
+		local function AddDropdownModule(ModuleOptions)
+			local ModuleName = Pick(ModuleOptions, LabelAliases, "")
+			local OptionsList = Pick(ModuleOptions, OptionsAliases, {})
+			local DefaultValue = Pick(ModuleOptions, DefaultAliases, nil)
+			local Callback = Pick(ModuleOptions, CallbackAliases, nil)
+			local Flag = Pick(ModuleOptions, FlagAliases, nil)
+			local MultiSelect = PickBool(ModuleOptions, MultiAliases, false)
 
-			local ModFrame = Instance.new("Frame")
-			ModFrame.Size = UDim2.new(1, 0, 0, Config.ModuleHeight)
-			ModFrame.BackgroundTransparency = 1
-			ModFrame.LayoutOrder = ModuleCount
-			ModFrame.Parent = Content
+			if type(OptionsList) ~= "table" then
+				OptionsList = {}
+			end
 
-			local TextLbl = Instance.new("TextLabel")
-			TextLbl.Size = UDim2.new(1, -75, 0, Config.ModuleHeight)
-			TextLbl.Position = UDim2.new(0, 4, 0, 0)
-			TextLbl.BackgroundTransparency = 1
-			TextLbl.Text = tostring(ModName or "Dropdown")
-			TextLbl.TextColor3 = Color3.fromRGB(210, 210, 215)
-			TextLbl.Font = Enum.Font.GothamMedium
-			TextLbl.TextSize = 11
-			TextLbl.TextXAlignment = Enum.TextXAlignment.Left
-			TextLbl.TextTruncate = Enum.TextTruncate.AtEnd
-			TextLbl.Parent = ModFrame
+			local ModuleFrame = Instance.new("Frame")
+			ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
+			ModuleFrame.BackgroundTransparency = 1
+			ModuleFrame.LayoutOrder = ModuleCount
+			ModuleFrame.Parent = Content
 
-			local DropBtn = Instance.new("TextButton")
-			DropBtn.Size = UDim2.new(0, Config.DropdownWidth, 0, 20)
-			DropBtn.Position = UDim2.new(1, -Config.DropdownWidth, 0, 4)
-			DropBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-			DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			DropBtn.Font = Enum.Font.GothamMedium
-			DropBtn.TextSize = 9
-			DropBtn.TextTruncate = Enum.TextTruncate.AtEnd
-			DropBtn.AutoButtonColor = false
-			DropBtn.Selectable = false
-			local DropPad = Instance.new("UIPadding")
-			DropPad.PaddingRight = UDim.new(0, 16)
-			DropPad.PaddingLeft = UDim.new(0, 5)
-			DropPad.Parent = DropBtn
-			DropBtn.Parent = ModFrame
-			Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 4)
+			local TextLabel = Instance.new("TextLabel")
+			TextLabel.Size = UDim2.new(1, -75, 0, Configuration.ModuleHeight)
+			TextLabel.Position = UDim2.new(0, 4, 0, 0)
+			TextLabel.BackgroundTransparency = 1
+			TextLabel.Text = ModuleName
+			TextLabel.TextColor3 = Color3.fromRGB(210, 210, 215)
+			TextLabel.Font = Enum.Font.GothamMedium
+			TextLabel.TextSize = 11
+			TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+			TextLabel.Parent = ModuleFrame
 
-			local DropChevron = CreateChevron(DropBtn, 9, 2)
-			DropChevron.Holder.ZIndex = 3
-			DropChevron.Holder.Position = UDim2.new(1, -8, 0.5, 0)
+			local DropdownButton = Instance.new("TextButton")
+			DropdownButton.Size = UDim2.new(0, 70, 0, 20)
+			DropdownButton.Position = UDim2.new(1, -70, 0, 4)
+			DropdownButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+			DropdownButton.Text = (type(DefaultValue) == "string" and DefaultValue) or (OptionsList[1] or "None")
+			DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			DropdownButton.Font = Enum.Font.GothamMedium
+			DropdownButton.TextSize = 10
+			DropdownButton.AutoButtonColor = false
+			DropdownButton.Parent = ModuleFrame
+			Instance.new("UICorner", DropdownButton).CornerRadius = UDim.new(0, 4)
 
+			local SelectedOption = DropdownButton.Text
+			local SelectedSet = {}
+			local SelectedList = {}
+			local OptionButtons = {}
 			local IsOpen = false
-			local SelectedOption = nil
-			local Selected = {}
 
-			local function IsSelected(Value)
-				for _, Item in ipairs(Selected) do if Item == Value then return true end end
-				return false
-			end
-
-			local function SetSelected(Value, State)
-				for Index, Item in ipairs(Selected) do
-					if Item == Value then
-						if not State then table.remove(Selected, Index) end
-						return
-					end
-				end
-				if State then table.insert(Selected, Value) end
-			end
-
-			local function CopySelected()
-				local Result = {}
-				for _, Value in ipairs(Selected) do table.insert(Result, Value) end
-				return Result
-			end
-
-			local function GetDisplayText()
-				if not Multi then return tostring(SelectedOption or "None") end
-				if #Selected == 0 then return "None" end
-				if #Selected == 1 then return tostring(Selected[1]) end
-				return tostring(#Selected) .. " selected"
-			end
-
-			local function ApplyDefault(Value)
-				SelectedOption = nil
-				Selected = {}
-				if Multi then
-					if type(Value) == "table" then
-						for _, Item in ipairs(Value) do SetSelected(Item, true) end
-					elseif Value ~= nil then SetSelected(Value, true) end
+			local function UpdateMultiText()
+				if #SelectedList == 0 then
+					DropdownButton.Text = "None"
+				elseif #SelectedList == 1 then
+					DropdownButton.Text = SelectedList[1]
 				else
-					if type(Value) == "table" then Value = Value[1] end
-					SelectedOption = Value or OptionsList[1] or "None"
+					DropdownButton.Text = #SelectedList .. " selected"
 				end
-				DropBtn.Text = GetDisplayText()
 			end
 
-			ApplyDefault(Default)
+			if MultiSelect then
+				local DefaultList = type(DefaultValue) == "table" and DefaultValue or {}
+				for _, Option in ipairs(DefaultList) do
+					SelectedSet[Option] = true
+					table.insert(SelectedList, Option)
+				end
+				UpdateMultiText()
+			end
 
 			local Container = Instance.new("Frame")
 			Container.Size = UDim2.new(1, 0, 0, 0)
-			Container.Position = UDim2.new(0, 0, 0, Config.ModuleHeight + 2)
+			Container.Position = UDim2.new(0, 0, 0, Configuration.ModuleHeight + 2)
 			Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 			Container.Visible = false
 			Container.ClipsDescendants = true
-			Container.Parent = ModFrame
+			Container.Parent = ModuleFrame
 			Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 4)
 
-			local ContainerPad = Instance.new("UIPadding")
-			ContainerPad.PaddingTop = UDim.new(0, 4)
-			ContainerPad.PaddingBottom = UDim.new(0, 4)
-			ContainerPad.PaddingLeft = UDim.new(0, 4)
-			ContainerPad.PaddingRight = UDim.new(0, 4)
-			ContainerPad.Parent = Container
+			local ContainerPadding = Instance.new("UIPadding")
+			ContainerPadding.PaddingTop = UDim.new(0, 4)
+			ContainerPadding.PaddingBottom = UDim.new(0, 4)
+			ContainerPadding.PaddingLeft = UDim.new(0, 4)
+			ContainerPadding.PaddingRight = UDim.new(0, 4)
+			ContainerPadding.Parent = Container
 
-			local List = Instance.new("UIListLayout")
-			List.SortOrder = Enum.SortOrder.LayoutOrder
-			List.Padding = UDim.new(0, 3)
-			List.Parent = Container
-
-			local function UpdateOpenSize()
-				local VisibleCount = math.min(#OptionsList, Config.DropdownMaxVisible)
-				local TargetH = IsOpen and (VisibleCount * 21 + 8) or 0
-				Container.Size = UDim2.new(1, 0, 0, TargetH)
-				ModFrame.Size = UDim2.new(1, 0, 0, IsOpen and (Config.ModuleHeight + TargetH + 4) or Config.ModuleHeight)
-				UpdatePanelHeight()
-			end
+			local ListLayout = Instance.new("UIListLayout")
+			ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			ListLayout.Padding = UDim.new(0, 3)
+			ListLayout.Parent = Container
 
 			local function RefreshOptions()
 				for _, Child in ipairs(Container:GetChildren()) do
 					if Child:IsA("TextButton") then Child:Destroy() end
 				end
-				for Index, Opt in ipairs(OptionsList) do
-					local Value = Opt
-					local OptBtn = Instance.new("TextButton")
-					OptBtn.Size = UDim2.new(1, 0, 0, 18)
-					OptBtn.LayoutOrder = Index
-					OptBtn.BackgroundColor3 = IsSelected(Value) and Config.ThemeColor or Color3.fromRGB(28, 28, 35)
-					OptBtn.BackgroundTransparency = IsSelected(Value) and 0.15 or 0
-					OptBtn.Text = tostring(Value)
-					OptBtn.TextColor3 = IsSelected(Value) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
-					OptBtn.Font = Enum.Font.Gotham
-					OptBtn.TextSize = 10
-					OptBtn.TextXAlignment = Enum.TextXAlignment.Left
-					OptBtn.AutoButtonColor = false
-					OptBtn.Selectable = false
-					OptBtn.Parent = Container
-					Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 3)
-					local CheckIcon = CreateCheckIcon(OptBtn, 10)
-					CheckIcon.Visible = Multi and IsSelected(Value)
-					OptBtn.MouseButton1Click:Connect(function()
-						if Multi then
-							SetSelected(Value, not IsSelected(Value))
-							DropBtn.Text = GetDisplayText()
-							RefreshOptions()
-							if Callback then Callback(CopySelected()) end
+
+				OptionButtons = {}
+
+				for _, Option in ipairs(OptionsList) do
+					local OptionButton = Instance.new("TextButton")
+					OptionButton.Size = UDim2.new(1, 0, 0, 18)
+					OptionButton.BackgroundColor3 = (MultiSelect and SelectedSet[Option]) and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+					OptionButton.Text = Option
+					OptionButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+					OptionButton.Font = Enum.Font.Gotham
+					OptionButton.TextSize = 10
+					OptionButton.Parent = Container
+					Instance.new("UICorner", OptionButton).CornerRadius = UDim.new(0, 3)
+					OptionButtons[Option] = OptionButton
+
+					OptionButton.MouseButton1Click:Connect(function()
+						if MultiSelect then
+							if SelectedSet[Option] then
+								SelectedSet[Option] = nil
+								for Index, Value in ipairs(SelectedList) do
+									if Value == Option then
+										table.remove(SelectedList, Index)
+										break
+									end
+								end
+							else
+								SelectedSet[Option] = true
+								table.insert(SelectedList, Option)
+							end
+
+							OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+							UpdateMultiText()
+
+							if Callback then
+								Callback(SelectedList)
+							end
 						else
-							SelectedOption = Value
-							DropBtn.Text = GetDisplayText()
+							SelectedOption = Option
+							DropdownButton.Text = Option
 							IsOpen = false
 							Container.Visible = false
-							DropChevron.SetDirection("down")
-							UpdateOpenSize()
-							if Callback then Callback(Value) end
+							ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
+							UpdatePanelHeight()
+
+							if Callback then
+								Callback(Option)
+							end
 						end
 					end)
 				end
 			end
+
 			RefreshOptions()
 
-			DropBtn.MouseButton1Click:Connect(function()
+			DropdownButton.MouseButton1Click:Connect(function()
 				IsOpen = not IsOpen
 				Container.Visible = IsOpen
-				DropChevron.SetDirection(IsOpen and "up" or "down")
-				UpdateOpenSize()
+				local TargetHeight = IsOpen and (#OptionsList * 21 + 8) or 0
+				Container.Size = UDim2.new(1, 0, 0, TargetHeight)
+				ModuleFrame.Size = UDim2.new(1, 0, 0, IsOpen and (Configuration.ModuleHeight + TargetHeight + 4) or Configuration.ModuleHeight)
+				UpdatePanelHeight()
 			end)
 
 			ModuleCount = ModuleCount + 1
 
 			local API = {
-				Get = function() return Multi and CopySelected() or SelectedOption end,
-				Set = function(Val, SkipCallback)
-					ApplyDefault(Val)
-					RefreshOptions()
-					if Callback and not SkipCallback then Callback(Multi and CopySelected() or SelectedOption) end
+				Get = function()
+					if MultiSelect then
+						local Copy = {}
+						for _, Value in ipairs(SelectedList) do
+							table.insert(Copy, Value)
+						end
+						return Copy
+					end
+					return SelectedOption
 				end,
-				Clear = function(SkipCallback)
-					if Multi then
-						Selected = {}
-						DropBtn.Text = "None"
-						RefreshOptions()
-						if Callback and not SkipCallback then Callback({}) end
+				Set = function(Value, SkipCallback)
+					if MultiSelect then
+						SelectedSet = {}
+						SelectedList = {}
+
+						for _, Option in ipairs(Value or {}) do
+							SelectedSet[Option] = true
+							table.insert(SelectedList, Option)
+						end
+
+						UpdateMultiText()
+
+						for Option, OptionButton in pairs(OptionButtons) do
+							OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+						end
+
+						if Callback and not SkipCallback then
+							Callback(SelectedList)
+						end
+					else
+						SelectedOption = Value
+						DropdownButton.Text = Value
+
+						if Callback and not SkipCallback then
+							Callback(Value)
+						end
 					end
 				end,
 				UpdateOptions = function(NewOptions)
-					OptionsList = NewOptions or {}
-					if Multi then
-						local Valid = {}
-						for _, Item in ipairs(Selected) do
-							for _, Opt in ipairs(OptionsList) do
-								if Item == Opt then table.insert(Valid, Item); break end
-							end
-						end
-						Selected = Valid
-					else
-						local Found = false
-						for _, Opt in ipairs(OptionsList) do if Opt == SelectedOption then Found = true break end end
-						if not Found then SelectedOption = OptionsList[1] or "None" end
-					end
-					DropBtn.Text = GetDisplayText()
+					OptionsList = NewOptions
 					RefreshOptions()
-					UpdateOpenSize()
 				end
 			}
 
-			if Flag then FlagRegistry[Flag] = API end
+			if Flag then
+				FlagRegistry[Flag] = API
+			end
+
 			return API
 		end
 
-		return { 
+		return {
 			AddModule = AddModule,
 			AddTextBoxModule = AddTextBoxModule,
 			AddDropdownModule = AddDropdownModule
@@ -1709,6 +1883,7 @@ function Library.New(Options)
 
 	local function GetAvailableConfigs()
 		local Configs = {}
+
 		if listfiles then
 			local Files = listfiles(ConfigFolder)
 			for _, Path in ipairs(Files) do
@@ -1718,50 +1893,55 @@ function Library.New(Options)
 				end
 			end
 		end
-		if #Configs == 0 then table.insert(Configs, "default") end
+
+		if #Configs == 0 then
+			table.insert(Configs, "default")
+		end
+
 		return Configs
 	end
 
 	local function SaveConfigToFile(ConfigName)
 		if not ConfigName or ConfigName == "" then return end
+
 		local SaveData = {}
+
 		for Flag, Control in pairs(FlagRegistry) do
 			if Control.Get and Flag ~= "Config_AutoLoad_Enabled" then
 				SaveData[Flag] = Control.Get()
 			end
 		end
-		
+
 		local FilePath = ConfigFolder .. "/" .. ConfigName .. ".json"
 		local Encoded = HttpService:JSONEncode(SaveData)
-		
+
 		if writefile then
 			writefile(FilePath, Encoded)
 		end
 	end
 
-	-- Two-pass load: settings load silently first, then "_Enabled" toggles load
-	-- last with SkipCallback tied to their saved value. This makes modules like
-	-- Auto Save actually spawn their thread when saved as true, while modules
-	-- saved as false stay fully silent and don't run their off-state callback
-	-- (which would otherwise touch things like Lighting even though disabled).
 	local function LoadConfigFromFile(ConfigName)
 		if not ConfigName or ConfigName == "" then return end
+
 		local FilePath = ConfigFolder .. "/" .. ConfigName .. ".json"
-		
+
 		if readfile and isfile and isfile(FilePath) then
 			local Raw = readfile(FilePath)
 			local Success, Decoded = pcall(function() return HttpService:JSONDecode(Raw) end)
+
 			if Success and type(Decoded) == "table" then
 				for Flag, Value in pairs(Decoded) do
 					if FlagRegistry[Flag] and FlagRegistry[Flag].Set and not Flag:match("_Enabled$") then
 						FlagRegistry[Flag].Set(Value, true)
 					end
 				end
+
 				for Flag, Value in pairs(Decoded) do
 					if FlagRegistry[Flag] and FlagRegistry[Flag].Set and Flag:match("_Enabled$") then
 						FlagRegistry[Flag].Set(Value, not Value)
 					end
 				end
+
 				for _, DropdownControl in ipairs(DropdownRegistry) do
 					DropdownControl.Set(ConfigName, true)
 				end
@@ -1771,7 +1951,9 @@ function Library.New(Options)
 
 	local function DeleteConfigFile(ConfigName)
 		if not ConfigName or ConfigName == "" then return end
+
 		local FilePath = ConfigFolder .. "/" .. ConfigName .. ".json"
+
 		if delfile and isfile and isfile(FilePath) then
 			delfile(FilePath)
 		end
@@ -1786,12 +1968,14 @@ function Library.New(Options)
 
 	local function LoadAutoLoadState()
 		local FilePath = ConfigFolder .. "/AutoloadState.json"
+
 		if readfile and isfile and isfile(FilePath) then
 			local Success, Data = pcall(function() return HttpService:JSONDecode(readfile(FilePath)) end)
 			if Success and type(Data) == "table" then
 				return Data.Enabled, Data.Config
 			end
 		end
+
 		return false, "default"
 	end
 
@@ -1832,6 +2016,7 @@ function Library.New(Options)
 				end
 			end
 		})
+
 		table.insert(DropdownRegistry, SelectConfigDrop)
 
 		local SaveMod = ConfigCategory.AddModule({
@@ -1840,6 +2025,7 @@ function Library.New(Options)
 			Callback = function()
 				local ActiveConfig = SelectConfigDrop.Get()
 				SaveConfigToFile(ActiveConfig)
+
 				local AutoLoadEnabled = FlagRegistry["Config_AutoLoad_Enabled"] and FlagRegistry["Config_AutoLoad_Enabled"].Get()
 				if AutoLoadEnabled then
 					SaveAutoLoadState(true, ActiveConfig)
@@ -1854,6 +2040,7 @@ function Library.New(Options)
 				local ActiveConfig = SelectConfigDrop.Get()
 				DeleteConfigFile(ActiveConfig)
 				local UpdatedList = GetAvailableConfigs()
+
 				for _, DropdownControl in ipairs(DropdownRegistry) do
 					DropdownControl.UpdateOptions(UpdatedList)
 					DropdownControl.Set(UpdatedList[1] or "default", true)
@@ -1862,6 +2049,7 @@ function Library.New(Options)
 		})
 
 		local AutoSaveThread = nil
+
 		local AutoSaveMod = ConfigCategory.AddModule({
 			Name = "Auto Save",
 			Flag = "Config_AutoSave_Enabled",
@@ -1896,6 +2084,7 @@ function Library.New(Options)
 			Callback = function()
 				local ActiveConfig = SelectConfigDrop.Get()
 				LoadConfigFromFile(ActiveConfig)
+
 				local AutoLoadEnabled = FlagRegistry["Config_AutoLoad_Enabled"] and FlagRegistry["Config_AutoLoad_Enabled"].Get()
 				if AutoLoadEnabled then
 					SaveAutoLoadState(true, ActiveConfig)
@@ -1911,6 +2100,7 @@ function Library.New(Options)
 			Callback = function(State)
 				local ActiveConfig = SelectConfigDrop.Get()
 				SaveAutoLoadState(State, ActiveConfig)
+
 				if State then
 					LoadConfigFromFile(ActiveConfig)
 				end
@@ -1922,6 +2112,7 @@ function Library.New(Options)
 				if AutoLoadMod and AutoLoadMod.Set then
 					AutoLoadMod.Set(true, true)
 				end
+
 				if SavedAutoLoadConfig and SavedAutoLoadConfig ~= "" then
 					for _, DropdownControl in ipairs(DropdownRegistry) do
 						DropdownControl.Set(SavedAutoLoadConfig, true)
@@ -1934,94 +2125,78 @@ function Library.New(Options)
 		return ConfigCategory
 	end
 
-	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Size = UDim2.new(0, 150, 0, 32)
-	ToggleBtn.Position = UDim2.new(1, -(Config.ToggleRight + 150), 0, Config.ToggleTop)
-	ToggleBtn.BackgroundColor3 = Config.BackgroundColor
-	ToggleBtn.BackgroundTransparency = 0.15
-	ToggleBtn.Text = "Hide " .. Config.ShowText
-	ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	ToggleBtn.Font = Enum.Font.GothamBold
-	ToggleBtn.TextSize = 11
-	ToggleBtn.AutoButtonColor = false
-	ToggleBtn.Selectable = false
-	ToggleBtn.ZIndex = 20
-	ToggleBtn.Parent = ScreenGui
-	Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+	local DefaultTogglePosition
+
+	if IsTouchDevice then
+		DefaultTogglePosition = UDim2.new(1, -Configuration.CategoryStartX - Configuration.ToggleButtonSize.X.Offset, 0, 15)
+	else
+		DefaultTogglePosition = UDim2.new(0, Configuration.CategoryStartX, 0, 15)
+	end
+
+	local ToggleButton = Instance.new("TextButton")
+	ToggleButton.Size = Configuration.ToggleButtonSize
+	ToggleButton.Position = Pick(Options, ToggleButtonPositionAliases, DefaultTogglePosition)
+	ToggleButton.BackgroundColor3 = Configuration.BackgroundColor
+	ToggleButton.BackgroundTransparency = 0.15
+	ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	ToggleButton.Font = Enum.Font.GothamBold
+	ToggleButton.TextSize = 11
+	ToggleButton.AutoButtonColor = false
+	ToggleButton.Parent = ScreenGui
+	Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, Configuration.CornerRadius)
 
 	local ToggleStroke = Instance.new("UIStroke")
-	ToggleStroke.Color = Color3.fromRGB(18, 18, 22)
+	ToggleStroke.Color = Color3.fromRGB(35, 35, 45)
 	ToggleStroke.Thickness = 1
-	ToggleStroke.Parent = ToggleBtn
+	ToggleStroke.Parent = ToggleButton
 
-	MakeDraggable(ToggleBtn, ToggleBtn, function()
+	local function UpdateToggleText()
+		ToggleButton.Text = (ArePanelsVisible and "Hide " or "Show ") .. Configuration.Name
+	end
+
+	UpdateToggleText()
+
+	MakeDraggable(ToggleButton, ToggleButton, function()
 		ArePanelsVisible = not ArePanelsVisible
 		for _, Panel in ipairs(PanelsList) do
 			Panel.Visible = ArePanelsVisible
 		end
-		ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
+		UpdateToggleText()
 	end)
 
 	UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 		if GameProcessed then return end
-		if Input.KeyCode == Config.PanelsKey then
+
+		if Input.KeyCode == Configuration.PanelsKey then
 			ArePanelsVisible = not ArePanelsVisible
 			for _, Panel in ipairs(PanelsList) do
 				Panel.Visible = ArePanelsVisible
 			end
-			ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
-		elseif Input.KeyCode == Config.ToggleKey then
+			UpdateToggleText()
+		elseif Input.KeyCode == Configuration.ToggleKey then
 			ScreenGui.Enabled = not ScreenGui.Enabled
 		end
 	end)
 
 	local ConfigurationCategory = nil
-	
-    if Options.ConfigCategory == true then
+
+	if PickBool(Options, ConfigCategoryAliases, false) then
 		ConfigurationCategory = CreateConfigCategory()
 	end
 
 	return {
-		Config = Config,
+		Config = Configuration,
 		FlagRegistry = FlagRegistry,
 		DropdownRegistry = DropdownRegistry,
 		ScreenGui = ScreenGui,
 		Configuration = ConfigurationCategory,
 		CreateCategory = CreateCategory,
 		CreateConfigCategory = CreateConfigCategory,
-		SetCategoryWidth = function(Width)
-			Width = tonumber(Width) or Config.PanelWidth
-			Config.PanelWidth = math.max(120, Width)
-			for Index, Panel in ipairs(PanelsList) do
-				Panel.Size = UDim2.new(0, Config.PanelWidth, 0, Panel.Size.Y.Offset)
-				if Index > 1 then
-					local XPos = Config.CategoryLeft + ((Index - 1) * (Config.PanelWidth + Config.CategoryGap))
-					Panel.Position = UDim2.new(0, XPos, Panel.Position.Y.Scale, Panel.Position.Y.Offset)
-				end
-			end
-		end,
-		SetCategoryTop = function(Y)
-			Config.CategoryTop = tonumber(Y) or Config.CategoryTop
-			for _, Panel in ipairs(PanelsList) do
-				Panel.Position = UDim2.new(Panel.Position.X.Scale, Panel.Position.X.Offset, 0, Config.CategoryTop)
-			end
-		end,
-		SetTogglePosition = function(Top, Right)
-			Config.ToggleTop = tonumber(Top) or Config.ToggleTop
-			Config.ToggleRight = tonumber(Right) or Config.ToggleRight
-			ToggleBtn.Position = UDim2.new(1, -(Config.ToggleRight + ToggleBtn.Size.X.Offset), 0, Config.ToggleTop)
-		end,
-		SetPanelsVisible = function(Visible)
-			ArePanelsVisible = Visible == true
-			for _, Panel in ipairs(PanelsList) do Panel.Visible = ArePanelsVisible end
-			ToggleBtn.Text = ArePanelsVisible and ("Hide " .. Config.ShowText) or ("Show " .. Config.ShowText)
-		end,
 		SaveConfigToFile = SaveConfigToFile,
 		LoadConfigFromFile = LoadConfigFromFile,
 		DeleteConfigFile = DeleteConfigFile,
 		GetAvailableConfigs = GetAvailableConfigs,
 	}
 end
-
 
 return Library
