@@ -2206,17 +2206,4 @@ function Library.New(Options)
 	}
 end
 
-local Client = Library.New({ Name = "MultiPanel UI" })
-
-local Combat = Client.CreateCategory("Combat")
-Combat.AddModule({
-	Name = "KillAura",
-	Flag = "KillAura_Enabled",
-	Settings = {
-		{ Type = "Slider", Name = "Range", Min = 5, Max = 50, Default = 18, Step = 1, Flag = "KillAura_Range" },
-		{ Type = "Dropdown", Name = "Targets", Options = {"Players", "NPCs", "Structures"}, Default = {"Players"}, Multi = true, Flag = "KillAura_Targets" },
-		{ Type = "TextBox", Name = "Custom Damage", Default = "10", Placeholder = "Amount...", Numeric = true, Flag = "KillAura_CustomDamage" }
-	}
-})
-
 return Library
