@@ -304,8 +304,15 @@ function Library.New(Options)
 
 		local CurrentValue = DefaultValue
 
+		local StepDecimals = 0
+		do
+			local StepString = tostring(StepValue)
+			local DecimalPart = StepString:match("%.(%d+)")
+			StepDecimals = DecimalPart and #DecimalPart or 0
+		end
+
 		local function UpdateDisplay(DisplayValue)
-			ValueBox.Text = string.format("%.1f", DisplayValue)
+			ValueBox.Text = string.format("%." .. StepDecimals .. "f", DisplayValue)
 			local Alpha = math.clamp((DisplayValue - Minimum) / (Maximum - Minimum), 0, 1)
 			TweenService:Create(Fill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Size = UDim2.new(Alpha, 0, 1, 0)
@@ -2198,5 +2205,18 @@ function Library.New(Options)
 		GetAvailableConfigs = GetAvailableConfigs,
 	}
 end
+
+local Client = Library.New({ Name = "MultiPanel UI" })
+
+local Combat = Client.CreateCategory("Combat")
+Combat.AddModule({
+	Name = "KillAura",
+	Flag = "KillAura_Enabled",
+	Settings = {
+		{ Type = "Slider", Name = "Range", Min = 5, Max = 50, Default = 18, Step = 1, Flag = "KillAura_Range" },
+		{ Type = "Dropdown", Name = "Targets", Options = {"Players", "NPCs", "Structures"}, Default = {"Players"}, Multi = true, Flag = "KillAura_Targets" },
+		{ Type = "TextBox", Name = "Custom Damage", Default = "10", Placeholder = "Amount...", Numeric = true, Flag = "KillAura_CustomDamage" }
+	}
+})
 
 return Library
