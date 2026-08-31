@@ -72,7 +72,8 @@ local FireM1 = function(Character)
 end
 
 local FireGadget = function(Gadget)
-    if Client.GadgetMeter.Value < 800 then return end
+    local Meter = Client:FindFirstChild("GadgetMeter")
+    if not (Meter and Meter.Value >= 800) then return end
     Interact:FireServer("Gadget", "Slot2", Gadget, "Began")
 end
 
