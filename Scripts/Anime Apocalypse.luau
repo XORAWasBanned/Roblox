@@ -140,7 +140,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
         if not AfkMode then
             RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         else
-            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 20, 0), Target)
+            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 10, 0), Target)
         end
     end)
     
