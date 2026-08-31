@@ -87,6 +87,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
     end
     
     if AfkMode and HUD.EndScreen.Visible then
+        queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
         Interact:FireServer("PlayAgain")
         HUD.EndScreen.Visible = false
     end
