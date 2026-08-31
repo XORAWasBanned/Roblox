@@ -146,7 +146,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
     
     task.spawn(function()
         FireAbility(4, "Soul Reaper")
-        FireAbility(2, "Soul Reaper")
+        --FireAbility(2, "Soul Reaper")
         FireAbility(3, "Soul Reaper")
         FireM1("Soul Reaper")
         FireGadget("Ice Amulet")
