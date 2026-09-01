@@ -1,4 +1,7 @@
 if not game.IsLoaded then game.Loaded:Wait() end
+queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
+
+if workspace:GetAttribute("NoCooldowns") then return end
 getgenv().AfkMode = true
 
 local Players = game:GetService("Players")
@@ -204,7 +207,3 @@ end)
 workspace.ChildAdded:Connect(function(Child)
     if Child.Name == "CeroHitboxRoot" then Child:Destroy() end
 end)
-
-setfflag("DataSenderRate", 120)
-
-queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
