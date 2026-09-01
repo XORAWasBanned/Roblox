@@ -31,14 +31,12 @@ end
 
 local SetAbilityCooldown = function(Ability, Name, Duration)
     if not (Ability and Name and Duration and Duration > 0) then return end
-
     AbilityCooldowns[Ability] = { Name = Name, Duration = Duration, EndTime = tick() + Duration }
 end
 
 local GetCharacter = function()
     return _G.LocalShowcasingAbility or (function()
         local AbilitySlots = Client:WaitForChild("Data"):WaitForChild("AbilitySlots")
-
         for _, Data in require(ReplicatedStorage.Assets.Modules.Utils).Decode(AbilitySlots.Value) do
             if Data and Data.Showcasing then return Data.Name end
         end
@@ -159,7 +157,11 @@ RunService.Heartbeat:Connect(function(DeltaTime)
 
         local TargetRootPart = TargetEnemy:FindFirstChild("HumanoidRootPart")
         if not TargetRootPart then return end
-
+        
+        if AfkMode then
+            RootPart.Velocity = vector.zero
+        end
+        
         if not BossEnemy then
             if not AfkMode then
                 CurrentAngle = (CurrentAngle + (360 * math.pi) * DeltaTime) % 360
