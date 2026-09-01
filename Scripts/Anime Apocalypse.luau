@@ -1,13 +1,15 @@
+if not game.IsLoaded then game.Loaded:Wait() end
 getgenv().AfkMode = true
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Remotes = ReplicatedStorage.Assets.Remotes
-local Interact, UsedAbility = Remotes.Interact, Remotes.UsedAbility
-local CombatData = require(ReplicatedStorage.Assets.Modules.CombatData)
+local Assets = ReplicatedStorage:WaitForChild("Assets")
+local Remotes = Assets:WaitForChild("Remotes")
+local Interact, UsedAbility = Remotes:WaitForChild("Interact"), Remotes:WaitForChild("UsedAbility")
+local CombatData = require(Assets:WaitForChild("Modules"):WaitForChild("CombatData"))
 
-local Drops, Enemies = workspace.Thrown, workspace.Zombies
+local Drops, Enemies = workspace:WaitForChild("Thrown"), workspace:WaitForChild("Zombies")
 
 local Boss, CurrentAngle, M1LastTime, M1Cooldown, AbilityCooldowns, AbilitySlots = nil, 0, 0, 0.4, {}, {
     [4] = "Z",
@@ -16,7 +18,7 @@ local Boss, CurrentAngle, M1LastTime, M1Cooldown, AbilityCooldowns, AbilitySlots
 }
 
 local Client = Players.LocalPlayer
-local HUD = Client.PlayerGui.HUD
+local HUD = Client:WaitForChild("PlayerGui"):WaitForChild("HUD")
 
 local IsAbilityReady = function(Ability)
     local Cooldown = AbilityCooldowns[Ability]
