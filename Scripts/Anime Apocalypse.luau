@@ -29,8 +29,9 @@ local GetTarget = function(Origin, EnemiesList)
     for _, Enemy in (EnemiesList or Enemies:GetChildren()) do
         if Enemy:GetAttribute("Untargetable") then continue end
         local RootPart, Config = Enemy:FindFirstChild("HumanoidRootPart"), Enemy:FindFirstChild("Config")
+        local Health = Config and Config:FindFirstChild("Health")
         local Distance = RootPart and (RootPart.Position - Origin).Magnitude
-        if not (RootPart and Target.Distance > Distance and Config.Health.Value > 0) then continue end
+        if not (RootPart and Target.Distance > Distance and Health and Health.Value > 0) then continue end
         Target = {
             Config = Config,
             Character = Enemy,
@@ -146,7 +147,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
                 CurrentAngle = (CurrentAngle + (360 * math.pi) * DeltaTime) % 360
                 RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(CurrentAngle), 0)
             else
-                local TargetPosition = Enemy.Position + Enemy.RootPart.CFrame.LookVector * 5
+                local TargetPosition = Enemy.Position - Enemy.RootPart.CFrame.LookVector * 10
                 RootPart.CFrame = CFrame.lookAt(TargetPosition, Enemy.Position)
             end
             return
@@ -157,7 +158,8 @@ RunService.Heartbeat:Connect(function(DeltaTime)
         if not AfkMode then
             RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         else
-            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 15, 0), Target)
+            local TargetPosition = Enemy.Position - Enemy.RootPart.CFrame.LookVector * 10
+            RootPart.CFrame = CFrame.lookAt(TargetPosition, Enemy.Position)
         end
     end)
     
