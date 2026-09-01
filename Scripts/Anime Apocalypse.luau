@@ -1,4 +1,3 @@
-setfflag("DataSenderRate", 120)
 getgenv().AfkMode = true
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -141,7 +140,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
         if not AfkMode then
             RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         else
-            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 5, 0), Target)
+            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 15, 0), Target)
         end
     end)
     
@@ -167,5 +166,7 @@ end)
 workspace.ChildAdded:Connect(function(Child)
     if Child.Name == "CeroHitboxRoot" then Child:Destroy() end
 end)
+
+setfflag("DataSenderRate", 120)
 
 queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
