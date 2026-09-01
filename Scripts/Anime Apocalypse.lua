@@ -169,4 +169,4 @@ workspace.ChildAdded:Connect(function(Child)
     if Child.Name == "CeroHitboxRoot" then Child:Destroy() end
 end)
 
-queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
+queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.lua", true))
