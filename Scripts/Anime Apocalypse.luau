@@ -1,3 +1,4 @@
+setfflag("DataSenderRate", 0)
 getgenv().AfkMode = true
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -140,7 +141,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
         if not AfkMode then
             RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         else
-            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 0, 0), Target)
+            RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 3, 0), Target)
             FireAbility(3, "Soul Reaper")
         end
     end)
@@ -169,3 +170,5 @@ workspace.ChildAdded:Connect(function(Child)
 end)
 
 queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
+task.wait(5)
+setfflag("DataSenderRate", 0)
