@@ -142,16 +142,15 @@ RunService.Heartbeat:Connect(function(DeltaTime)
             RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         else
             RootPart.CFrame = CFrame.lookAt(Target + vector.create(0, 5, 0), Target)
-            FireAbility(3, "Soul Reaper")
         end
     end)
     
     task.spawn(function()
-        --FireAbility(4, "Soul Reaper")
-        --FireAbility(2, "Soul Reaper")
-        --FireAbility(3, "Soul Reaper")
-        --FireM1("Soul Reaper")
-        --FireGadget("Ice Amulet")
+        FireAbility(4, "Soul Reaper")
+        FireGadget("Ice Amulet")
+        FireM1("Soul Reaper")
+        FireAbility(2, "Soul Reaper")
+        FireAbility(3, "Soul Reaper")
     end)
 end)
 
