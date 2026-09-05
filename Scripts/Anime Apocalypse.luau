@@ -153,10 +153,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
                 local Attachment = Door:FindFirstChild("Attachment")
                 local ProximityPrompt = Attachment and Attachment:FindFirstChildOfClass("ProximityPrompt")
                 if ProximityPrompt then
-                    local Origin, Target = RootPart.Position, Door:GetPivot()
-                    if AfkMode then RootPart.CFrame = Target end
-                    local Distance = (Origin - Target.p).Magnitude
-                    if Distance > ProximityPrompt.MaxActivationDistance then continue end
+                    if AfkMode then RootPart.CFrame = Door:GetPivot() end
                     fireproximityprompt(ProximityPrompt)
                 end
             end
