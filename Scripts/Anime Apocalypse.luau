@@ -109,36 +109,58 @@ end)
 
 RunService.Heartbeat:Connect(function(DeltaTime)
     PlayerGui = Client:WaitForChild("PlayerGui")
-    if PlayerGui then HUD = PlayerGui:WaitForChild("HUD") end
-    if not HUD.Enabled then HUD.Enabled = true end
+    HUD = PlayerGui and PlayerGui:WaitForChild("HUD")
+    local Map = workspace:FindFirstChild("Map")
+    local Gates = Map and Map:FindFirstChild("Gates")
     
-    if AfkMode and HUD.EndScreen.Visible then
-        Interact:FireServer("PlayAgain")
-        HUD.EndScreen.Visible = false
+    if HUD then
+        if not HUD.Enabled then HUD.Enabled = true end
+        
+        if AfkMode and HUD.EndScreen.Visible then
+            Interact:FireServer("PlayAgain")
+            HUD.EndScreen.Visible = false
+        end
+        
+        if HUD.StartRaid.Visible then
+            Interact:FireServer("VoteSkipRaid")
+            HUD.StartRaid.Visible = false
+        end
+        
+        if HUD.BossSkipVote.Visible then
+            Interact:FireServer("VoteSkipBossCutscene")
+            HUD.BossSkipVote.Visible = false
+        end
     end
     
-    if HUD.StartRaid.Visible then
-        Interact:FireServer("VoteSkipRaid")
-        HUD.StartRaid.Visible = false
-    end
-    
-    if HUD.BossSkipVote.Visible then
-        Interact:FireServer("VoteSkipBossCutscene")
-        HUD.BossSkipVote.Visible = false
+    if Gates then
+        for _, Gate in Gates:GetChildren() do
+            if Gate.Name:find("Opened") then continue end
+            Interact:FireServer("GateHit", Gate)
+            Gate.Name = Gate.Name.."Opened"
+        end
     end
     
     local Character = Client.Character
     local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
     if not RootPart then return end
-    
     local EnemiesList = Enemies:GetChildren()
+    
     if #EnemiesList == 0 then
-        pcall(function()
-            for _, Door in workspace.Map.Objective.Entries:GetChildren() do
-                if AfkMode then RootPart.CFrame = Door:GetPivot() end
-                fireproximityprompt(Door.Attachment.ProximityPrompt) 
+        local Objective = Map and Map:FindFirstChild("Objective")
+        local Entries = Objective and Objective:FindFirstChild("Entries")
+        if Entries then
+            for _, Door in Entries:GetChildren() do
+                local Attachment = Door:FindFirstChild("Attachment")
+                local ProximityPrompt = Attachment and Attachment:FindFirstChildOfClass("ProximityPrompt")
+                if ProximityPrompt then
+                    local Origin, Target = RootPart.Position, Door:GetPivot()
+                    if AfkMode then RootPart.CFrame = Target end
+                    local Distance = (Origin - Target.p).Magnitude
+                    if Distance > ProximityPrompt.MaxActivationDistance then continue end
+                    fireproximityprompt(ProximityPrompt)
+                end
             end
-        end)
+        end
         return
     end
     
@@ -154,9 +176,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
             local Origin, Target = RootPart.Position, Enemy.Position
             RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         end
-    end)
-    
-    task.spawn(function()
+        
         Fire("Soul Reaper", "Ability", 4)
         Fire("Ice Amulet", "Gadget")
         Fire("Elf Mage", "M1")
@@ -167,15 +187,6 @@ RunService.Heartbeat:Connect(function(DeltaTime)
 end)
 
 Drops.ChildAdded:Connect(function(Child)
-    if Child.Name:find("Hit") or Child.Name == "Cero" then Child:Destroy() return end
     if not Child:FindFirstChild("Pickup") then return end
     Child.Pickup:FireServer()
-end)
-
-workspace.Terrain.ChildAdded:Connect(function(Child)
-    if Child.ClassName == "Beam" or Child.Name == "Start" then Child:Destroy() end
-end)
-
-workspace.ChildAdded:Connect(function(Child)
-    if Child.Name == "CeroHitboxRoot" then Child:Destroy() end
 end)
