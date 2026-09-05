@@ -164,26 +164,24 @@ RunService.Heartbeat:Connect(function(DeltaTime)
         return
     end
     
-    task.spawn(function()
-        local Enemy = GetTarget(RootPart.Position, EnemiesList)
-        if not Enemy then return end
-        
-        if AfkMode then
-            local TargetPosition = Enemy.Position - Enemy.RootPart.CFrame.LookVector * 10
-            RootPart.Velocity = vector.zero
-            RootPart.CFrame = CFrame.lookAt(TargetPosition, Enemy.Position)
-        else
-            local Origin, Target = RootPart.Position, Enemy.Position
-            RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
-        end
-        
-        Fire("Soul Reaper", "Ability", 4)
-        Fire("Ice Amulet", "Gadget")
-        Fire("Elf Mage", "M1")
-        Fire("Elf Mage", "Ability", 1)
-        Fire("Elf Mage", "Ability", 2)
-        Fire("Elf Mage", "Ability", 3)
-    end)
+    local Enemy = GetTarget(RootPart.Position, EnemiesList)
+    if not Enemy then return end
+    
+    if AfkMode then
+        local TargetPosition = Enemy.Position - Enemy.RootPart.CFrame.LookVector * 10
+        RootPart.Velocity = vector.zero
+        RootPart.CFrame = CFrame.lookAt(TargetPosition, Enemy.Position)
+    else
+        local Origin, Target = RootPart.Position, Enemy.Position
+        RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
+    end
+    
+    Fire("Soul Reaper", "Ability", 4)
+    Fire("Ice Amulet", "Gadget")
+    Fire("Elf Mage", "M1")
+    Fire("Elf Mage", "Ability", 1)
+    Fire("Elf Mage", "Ability", 2)
+    Fire("Elf Mage", "Ability", 3)
 end)
 
 Drops.ChildAdded:Connect(function(Child)
