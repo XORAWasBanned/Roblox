@@ -21,7 +21,8 @@ local CurrentAngle, M1LastTime, M1Cooldown, AbilityCooldowns = 0, 0, 0, {}
 
 local Client = Players.LocalPlayer
 local Data = Client:WaitForChild("Data")
-local HUD = Client:WaitForChild("PlayerGui"):WaitForChild("HUD")
+local PlayerGui = Client:WaitForChild("PlayerGui")
+local HUD = PlayerGui:WaitForChild("HUD")
 local AbilitySlots, GadgetSlots = Data:WaitForChild("AbilitySlots"), Data:WaitForChild("GadgetSlots")
 
 local GetTarget = function(Origin, EnemiesList)
@@ -31,19 +32,21 @@ local GetTarget = function(Origin, EnemiesList)
         local RootPart, Config = Enemy:FindFirstChild("HumanoidRootPart"), Enemy:FindFirstChild("Config")
         local Health = Config and Config:FindFirstChild("Health")
         local Distance = RootPart and (RootPart.Position - Origin).Magnitude
-        if not (RootPart and Target.Distance > Distance and Health and Health.Value > 0) then continue end
-        Target = {
-            Config = Config,
-            Character = Enemy,
-            RootPart = RootPart,
-            Position = RootPart.Position,
-            Distance = Distance,
-            IsBoss = Enemy:GetAttribute("RaidBoss")
-        }
+        if not (RootPart and Health and Health.Value > 0) then continue end
+        local IsBoss = Enemy:GetAttribute("RaidBoss")
+        if IsBoss and not Target.IsBoss or IsBoss == Target.IsBoss and Distance < Target.Distance then
+            Target = {
+                Config = Config,
+                Character = Enemy,
+                RootPart = RootPart,
+                Position = RootPart.Position,
+                Distance = Distance,
+                IsBoss = IsBoss
+            }
+        end
     end
     return Target.RootPart and Target or nil
 end
-
 local GetSlot = function(Name, IsGadget)
     local Slots = IsGadget and GadgetSlots or AbilitySlots
     for Slot, Data in Utils.Decode(Slots.Value) do
@@ -105,6 +108,8 @@ UsedAbility.OnClientEvent:Connect(function(_, Duration, AbilityName, Slot)
 end)
 
 RunService.Heartbeat:Connect(function(DeltaTime)
+    PlayerGui = Client:WaitForChild("PlayerGui")
+    if PlayerGui then HUD = PlayerGui:WaitForChild("HUD") end
     if not HUD.Enabled then HUD.Enabled = true end
     
     if AfkMode and HUD.EndScreen.Visible then
@@ -129,7 +134,10 @@ RunService.Heartbeat:Connect(function(DeltaTime)
     local EnemiesList = Enemies:GetChildren()
     if #EnemiesList == 0 then
         pcall(function()
-            for _, Door in workspace.Map.Objective.Entries:GetChildren() do fireproximityprompt(Door.Attachment.ProximityPrompt) end
+            for _, Door in workspace.Map.Objective.Entries:GetChildren() do
+                if AfkMode then RootPart.CFrame = Door:GetPivot() end
+                fireproximityprompt(Door.Attachment.ProximityPrompt) 
+            end
         end)
         return
     end
@@ -139,27 +147,12 @@ RunService.Heartbeat:Connect(function(DeltaTime)
         if not Enemy then return end
         
         if AfkMode then
-            RootPart.Velocity = vector.zero
-        end
-        
-        if not Enemy.IsBoss then
-            if not AfkMode then
-                CurrentAngle = (CurrentAngle + (360 * math.pi) * DeltaTime) % 360
-                RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(CurrentAngle), 0)
-            else
-                local TargetPosition = Enemy.Position - Enemy.RootPart.CFrame.LookVector * 10
-                RootPart.CFrame = CFrame.lookAt(TargetPosition, Enemy.Position)
-            end
-            return
-        end
-        
-        local Origin, Target = RootPart.Position, Enemy.Position
-        
-        if not AfkMode then
-            RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
-        else
             local TargetPosition = Enemy.Position - Enemy.RootPart.CFrame.LookVector * 10
+            RootPart.Velocity = vector.zero
             RootPart.CFrame = CFrame.lookAt(TargetPosition, Enemy.Position)
+        else
+            local Origin, Target = RootPart.Position, Enemy.Position
+            RootPart.CFrame = CFrame.lookAt(Origin, vector.create(Target.X, Origin.Y, Target.Z))
         end
     end)
     
