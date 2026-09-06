@@ -189,6 +189,19 @@ function Library.New(Options)
 		ThemeColor = Pick(Options, ThemeAliases, Color3.fromRGB(0, 150, 255)),
 		BackgroundColor = Pick(Options, {"BackgroundColor", "Background", "BackgroundColor3", "BgColor"}, Color3.fromRGB(15, 15, 18)),
 		HeaderColor = Pick(Options, {"HeaderColor", "Header", "HeaderBackgroundColor", "TitleColor"}, Color3.fromRGB(24, 24, 28)),
+		InputColor = Pick(Options, {"InputColor", "TextBoxColor"}, Color3.fromRGB(25, 25, 30)),
+		ButtonColor = Pick(Options, {"ButtonColor", "ModuleColor"}, Color3.fromRGB(24, 24, 28)),
+		DropdownColor = Pick(Options, {"DropdownColor"}, Color3.fromRGB(28, 28, 34)),
+		DropdownContainerColor = Pick(Options, {"DropdownContainerColor"}, Color3.fromRGB(20, 20, 25)),
+		DropdownOptionColor = Pick(Options, {"DropdownOptionColor"}, Color3.fromRGB(28, 28, 35)),
+		SettingsColor = Pick(Options, {"SettingsColor"}, Color3.fromRGB(20, 20, 24)),
+		ToggleOffColor = Pick(Options, {"ToggleOffColor"}, Color3.fromRGB(35, 35, 42)),
+		TrackColor = Pick(Options, {"TrackColor"}, Color3.fromRGB(35, 35, 42)),
+		KeybindColor = Pick(Options, {"KeybindColor"}, Color3.fromRGB(28, 28, 34)),
+		ValueBoxColor = Pick(Options, {"ValueBoxColor"}, Color3.fromRGB(28, 28, 34)),
+		ColorPanelColor = Pick(Options, {"ColorPanelColor"}, Color3.fromRGB(18, 18, 22)),
+		GearColor = Pick(Options, {"GearColor"}, Color3.fromRGB(32, 32, 38)),
+		BorderColor = Pick(Options, {"BorderColor"}, Color3.fromRGB(35, 35, 45)),
 		PanelWidth = PickNumber(Options, {"PanelWidth", "Width", "CategoryWidth", "PanelSize"}, 195),
 		HeaderHeight = PickNumber(Options, {"HeaderHeight", "HeaderSize", "TitleHeight"}, 34),
 		ModuleHeight = PickNumber(Options, {"ModuleHeight", "ModuleSize", "ButtonHeight"}, 28),
@@ -227,7 +240,7 @@ function Library.New(Options)
 		local ToggleButton = Instance.new("TextButton")
 		ToggleButton.Size = UDim2.new(0, 40, 0, 18)
 		ToggleButton.Position = UDim2.new(1, -40, 0, 4)
-		ToggleButton.BackgroundColor3 = DefaultState and Configuration.ThemeColor or Color3.fromRGB(35, 35, 42)
+		ToggleButton.BackgroundColor3 = DefaultState and Configuration.ThemeColor or Configuration.ToggleOffColor
 		ToggleButton.Text = DefaultState and "ON" or "OFF"
 		ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		ToggleButton.Font = Enum.Font.GothamBold
@@ -242,7 +255,7 @@ function Library.New(Options)
 		local function Fire(Value, SkipCallback)
 			Toggled = Value
 			TweenService:Create(ToggleButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-				BackgroundColor3 = Toggled and Configuration.ThemeColor or Color3.fromRGB(35, 35, 42)
+				BackgroundColor3 = Toggled and Configuration.ThemeColor or Configuration.ToggleOffColor
 			}):Play()
 			ToggleButton.Text = Toggled and "ON" or "OFF"
 			if Callback and not SkipCallback then Callback(Toggled) end
@@ -285,7 +298,7 @@ function Library.New(Options)
 		local ValueBox = Instance.new("TextBox")
 		ValueBox.Size = UDim2.new(0, 45, 0, 16)
 		ValueBox.Position = UDim2.new(1, -45, 0, 0)
-		ValueBox.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		ValueBox.BackgroundColor3 = Configuration.ValueBoxColor
 		ValueBox.Text = tostring(DefaultValue)
 		ValueBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 		ValueBox.Font = Enum.Font.GothamBold
@@ -303,7 +316,7 @@ function Library.New(Options)
 		local Track = Instance.new("Frame")
 		Track.Size = UDim2.new(1, 0, 0, 6)
 		Track.Position = UDim2.new(0, 0, 0.5, -3)
-		Track.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+		Track.BackgroundColor3 = Configuration.TrackColor
 		Track.Parent = TrackArea
 		Instance.new("UICorner", Track).CornerRadius = UDim.new(0, 3)
 
@@ -442,7 +455,7 @@ function Library.New(Options)
 		local InputBox = Instance.new("TextBox")
 		InputBox.Size = UDim2.new(0, 65, 0, BoxHeight)
 		InputBox.Position = UDim2.new(1, -65, 0, BoxPositionY)
-		InputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+		InputBox.BackgroundColor3 = Configuration.InputColor
 		InputBox.Text = tostring(DefaultValue or "")
 		InputBox.PlaceholderText = PlaceholderText or ""
 		InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
@@ -522,7 +535,7 @@ function Library.New(Options)
 		local DropdownButton = Instance.new("TextButton")
 		DropdownButton.Size = UDim2.new(0, 70, 0, ButtonHeight)
 		DropdownButton.Position = UDim2.new(1, -70, 0, ButtonPositionY)
-		DropdownButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		DropdownButton.BackgroundColor3 = Configuration.DropdownColor
 		DropdownButton.Text = (type(DefaultValue) == "string" and DefaultValue) or (OptionsList[1] or "None")
 		DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		DropdownButton.Font = Enum.Font.GothamMedium
@@ -559,7 +572,7 @@ function Library.New(Options)
 		local Container = Instance.new("Frame")
 		Container.Size = UDim2.new(1, 0, 0, 0)
 		Container.Position = UDim2.new(0, 0, 0, ContainerY)
-		Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+		Container.BackgroundColor3 = Configuration.DropdownContainerColor
 		Container.Visible = false
 		Container.ClipsDescendants = true
 		Container.Parent = Frame
@@ -587,7 +600,7 @@ function Library.New(Options)
 			for _, Option in ipairs(OptionsList) do
 				local OptionButton = Instance.new("TextButton")
 				OptionButton.Size = UDim2.new(1, 0, 0, 18)
-				OptionButton.BackgroundColor3 = (MultiSelect and SelectedSet[Option]) and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+				OptionButton.BackgroundColor3 = (MultiSelect and SelectedSet[Option]) and Configuration.ThemeColor or Configuration.DropdownOptionColor
 				OptionButton.Text = Option
 				OptionButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 				OptionButton.Font = Enum.Font.Gotham
@@ -611,7 +624,7 @@ function Library.New(Options)
 							table.insert(SelectedList, Option)
 						end
 
-						OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+						OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Configuration.DropdownOptionColor
 						UpdateMultiText()
 
 						if Callback then
@@ -674,7 +687,7 @@ function Library.New(Options)
 					UpdateMultiText()
 
 					for Option, OptionButton in pairs(OptionButtons) do
-						OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
+						OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Configuration.DropdownOptionColor
 					end
 
 					if Callback and not SkipCallback then
@@ -726,7 +739,7 @@ function Library.New(Options)
 		local BindButton = Instance.new("TextButton")
 		BindButton.Size = UDim2.new(0, 60, 0, 18)
 		BindButton.Position = UDim2.new(1, -60, 0, 4)
-		BindButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		BindButton.BackgroundColor3 = Configuration.KeybindColor
 		BindButton.Text = DefaultKey and (typeof(DefaultKey) == "EnumItem" and DefaultKey.Name or tostring(DefaultKey)) or "None"
 		BindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		BindButton.Font = Enum.Font.GothamMedium
@@ -765,7 +778,7 @@ function Library.New(Options)
 				if Input.UserInputType == Enum.UserInputType.Keyboard then
 					IsListening = false
 					TweenService:Create(BindButton, TweenInfo.new(Configuration.TweenTime), {
-						BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+						BackgroundColor3 = Configuration.KeybindColor
 					}):Play()
 
 					if Input.KeyCode == Enum.KeyCode.Escape or Input.KeyCode == Enum.KeyCode.Backspace then
@@ -898,13 +911,13 @@ function Library.New(Options)
 		local PanelFrame = Instance.new("Frame")
 		PanelFrame.Size = UDim2.new(1, 0, 0, PanelHeight)
 		PanelFrame.Position = UDim2.new(0, 0, 0, 30)
-		PanelFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+		PanelFrame.BackgroundColor3 = Configuration.ColorPanelColor
 		PanelFrame.Visible = false
 		PanelFrame.Parent = MainContainer
 		Instance.new("UICorner", PanelFrame).CornerRadius = UDim.new(0, 5)
 
 		local PanelStroke = Instance.new("UIStroke")
-		PanelStroke.Color = Color3.fromRGB(45, 45, 55)
+		PanelStroke.Color = Configuration.BorderColor
 		PanelStroke.Thickness = 1
 		PanelStroke.Parent = PanelFrame
 
@@ -1031,7 +1044,7 @@ function Library.New(Options)
 
 		local ModeButton = Instance.new("TextButton")
 		ModeButton.Size = UDim2.new(0, 40, 1, 0)
-		ModeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+		ModeButton.BackgroundColor3 = Configuration.DropdownColor
 		ModeButton.Text = "HEX"
 		ModeButton.TextColor3 = Configuration.ThemeColor
 		ModeButton.Font = Enum.Font.GothamBold
@@ -1043,7 +1056,7 @@ function Library.New(Options)
 		local ColorInputBox = Instance.new("TextBox")
 		ColorInputBox.Size = UDim2.new(1, -46, 1, 0)
 		ColorInputBox.Position = UDim2.new(0, 46, 0, 0)
-		ColorInputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+		ColorInputBox.BackgroundColor3 = Configuration.InputColor
 		ColorInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 		ColorInputBox.Font = Enum.Font.Gotham
 		ColorInputBox.TextSize = 10
@@ -1276,7 +1289,7 @@ function Library.New(Options)
 		Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, Configuration.CornerRadius)
 
 		local PanelStroke = Instance.new("UIStroke")
-		PanelStroke.Color = Color3.fromRGB(35, 35, 45)
+		PanelStroke.Color = Configuration.BorderColor
 		PanelStroke.Thickness = 1
 		PanelStroke.Parent = Panel
 
@@ -1381,7 +1394,7 @@ function Library.New(Options)
 
 			local ModuleButton = Instance.new("TextButton")
 			ModuleButton.Size = HasSettings and UDim2.new(1, -26, 1, 0) or UDim2.new(1, 0, 1, 0)
-			ModuleButton.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+			ModuleButton.BackgroundColor3 = Configuration.ButtonColor
 			ModuleButton.BackgroundTransparency = 0.2
 			ModuleButton.Text = "  " .. ModuleName
 			ModuleButton.TextColor3 = Color3.fromRGB(210, 210, 215)
@@ -1404,7 +1417,7 @@ function Library.New(Options)
 			local function SetModuleState(State, SkipCallback)
 				Toggled = State
 				TweenService:Create(ModuleButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-					BackgroundColor3 = Toggled and Configuration.ThemeColor or Color3.fromRGB(24, 24, 28),
+					BackgroundColor3 = Toggled and Configuration.ThemeColor or Configuration.ButtonColor,
 					BackgroundTransparency = Toggled and 0.1 or 0.2
 				}):Play()
 				ModuleButton.TextColor3 = Toggled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(210, 210, 215)
@@ -1427,7 +1440,7 @@ function Library.New(Options)
 				GearButton.Size = UDim2.new(0, 22, 0, 22)
 				GearButton.AnchorPoint = Vector2.new(0.5, 0.5)
 				GearButton.Position = UDim2.new(1, -11, 0.5, 0)
-				GearButton.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+				GearButton.BackgroundColor3 = Configuration.GearColor
 				GearButton.BackgroundTransparency = 0.3
 				GearButton.Text = "⚙"
 				GearButton.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -1439,7 +1452,7 @@ function Library.New(Options)
 
 				SettingsFrame = Instance.new("Frame")
 				SettingsFrame.Size = UDim2.new(1, 0, 0, 0)
-				SettingsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+				SettingsFrame.BackgroundColor3 = Configuration.SettingsColor
 				SettingsFrame.BackgroundTransparency = 0.1
 				SettingsFrame.LayoutOrder = 1
 				SettingsFrame.Visible = false
@@ -1564,7 +1577,7 @@ function Library.New(Options)
 
 					task.delay(0.2, function()
 						TweenService:Create(ModuleButton, TweenInfo.new(Configuration.TweenTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-							BackgroundColor3 = Color3.fromRGB(24, 24, 28),
+							BackgroundColor3 = Configuration.ButtonColor,
 							BackgroundTransparency = 0.2
 						}):Play()
 						ModuleButton.TextColor3 = Color3.fromRGB(210, 210, 215)
@@ -1914,7 +1927,7 @@ function Library.New(Options)
 	Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, Configuration.CornerRadius)
 
 	local ToggleStroke = Instance.new("UIStroke")
-	ToggleStroke.Color = Color3.fromRGB(35, 35, 45)
+	ToggleStroke.Color = Configuration.BorderColor
 	ToggleStroke.Thickness = 1
 	ToggleStroke.Parent = ToggleButton
 
