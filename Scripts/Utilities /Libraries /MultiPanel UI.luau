@@ -1,9 +1,8 @@
 local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
+
+local IsTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
 local function GetGuiParent()
 	if gethui and type(gethui) == "function" then
@@ -12,8 +11,6 @@ local function GetGuiParent()
 	end
 	return game:GetService("CoreGui")
 end
-
-local IsTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
 local function NormalizeKeyName(Key)
 	return (tostring(Key):lower():gsub("[^%alnum]", ""))
@@ -73,6 +70,26 @@ local function PickNumber(Config, Aliases, DefaultValue)
 	return NumberValue
 end
 
+local function ApplyNumericFilter(InputBox)
+	InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+		local FilteredText = InputBox.Text:gsub("[^%d%.%-]", "")
+		local DecimalCount = select(2, FilteredText:gsub("%.", ""))
+		local MinusCount = select(2, FilteredText:gsub("%-", ""))
+
+		if DecimalCount > 1 then
+			FilteredText = FilteredText:match("^(.-)%..*$") .. "." .. FilteredText:match("^.*%.(.+)$"):gsub("%.", "")
+		end
+
+		if MinusCount > 1 or (MinusCount == 1 and FilteredText:sub(1, 1) ~= "-") then
+			FilteredText = FilteredText:gsub("%-", "")
+		end
+
+		if FilteredText ~= InputBox.Text then
+			InputBox.Text = FilteredText
+		end
+	end)
+end
+
 local LabelAliases = {"Label", "Name", "Text", "Title"}
 local CallbackAliases = {"Callback", "OnChange", "Changed", "OnChanged"}
 local DefaultAliases = {"Default", "Value", "DefaultValue", "Start"}
@@ -95,6 +112,12 @@ local ThemeAliases = {"Theme", "ThemeColor", "Color", "AccentColor"}
 local CategoryWrapAliases = {"CategoryWrap", "WrapCategories", "Wrap"}
 local ToggleButtonPositionAliases = {"ToggleButtonPosition", "TogglePosition", "ButtonPosition"}
 local ConfigCategoryAliases = {"ConfigCategory", "ConfigurationCategory", "ConfigSystem", "Configs", "EnableConfig"}
+
+local HeightAliases = {"Height", "FrameHeight"}
+local ButtonHeightAliases = {"ButtonHeight"}
+local BoxHeightAliases = {"BoxHeight", "InputHeight"}
+local LabelIndentAliases = {"LabelIndent", "Indent"}
+local LayoutOrderAliases = {"LayoutOrder"}
 
 local function MakeDraggable(DragHandle, TargetFrame, OnClickCallback)
 	local Dragging = false
@@ -393,14 +416,21 @@ function Library.New(Options)
 		local Callback = Pick(TextBoxConfig, CallbackAliases, nil)
 		local PlaceholderText = Pick(TextBoxConfig, PlaceholderAliases, "")
 		local NumericOnly = PickBool(TextBoxConfig, NumericAliases, false)
+		local Height = PickNumber(TextBoxConfig, HeightAliases, 26)
+		local BoxHeight = PickNumber(TextBoxConfig, BoxHeightAliases, 18)
+		local LabelIndent = PickNumber(TextBoxConfig, LabelIndentAliases, 0)
+		local LayoutOrder = PickNumber(TextBoxConfig, LayoutOrderAliases, nil)
+		local BoxPositionY = (Height - BoxHeight) / 2
 
 		local Frame = Instance.new("Frame")
-		Frame.Size = UDim2.new(1, 0, 0, 26)
+		Frame.Size = UDim2.new(1, 0, 0, Height)
 		Frame.BackgroundTransparency = 1
+		if LayoutOrder then Frame.LayoutOrder = LayoutOrder end
 		Frame.Parent = Parent
 
 		local TextLabel = Instance.new("TextLabel")
 		TextLabel.Size = UDim2.new(1, -70, 1, 0)
+		TextLabel.Position = UDim2.new(0, LabelIndent, 0, 0)
 		TextLabel.BackgroundTransparency = 1
 		TextLabel.Text = Label
 		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -410,8 +440,8 @@ function Library.New(Options)
 		TextLabel.Parent = Frame
 
 		local InputBox = Instance.new("TextBox")
-		InputBox.Size = UDim2.new(0, 65, 0, 18)
-		InputBox.Position = UDim2.new(1, -65, 0, 4)
+		InputBox.Size = UDim2.new(0, 65, 0, BoxHeight)
+		InputBox.Position = UDim2.new(1, -65, 0, BoxPositionY)
 		InputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 		InputBox.Text = tostring(DefaultValue or "")
 		InputBox.PlaceholderText = PlaceholderText or ""
@@ -424,23 +454,7 @@ function Library.New(Options)
 		Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
 
 		if NumericOnly then
-			InputBox:GetPropertyChangedSignal("Text"):Connect(function()
-				local FilteredText = InputBox.Text:gsub("[^%d%.%-]", "")
-				local DecimalCount = select(2, FilteredText:gsub("%.", ""))
-				local MinusCount = select(2, FilteredText:gsub("%-", ""))
-
-				if DecimalCount > 1 then
-					FilteredText = FilteredText:match("^(.-)%..*$") .. "." .. FilteredText:match("^.*%.(.+)$"):gsub("%.", "")
-				end
-
-				if MinusCount > 1 or (MinusCount == 1 and FilteredText:sub(1,1) ~= "-") then
-					FilteredText = FilteredText:gsub("%-", "")
-				end
-
-				if FilteredText ~= InputBox.Text then
-					InputBox.Text = FilteredText
-				end
-			end)
+			ApplyNumericFilter(InputBox)
 		end
 
 		InputBox.FocusLost:Connect(function()
@@ -479,18 +493,24 @@ function Library.New(Options)
 		local Callback = Pick(DropdownConfig, CallbackAliases, nil)
 		local OnResizeRequested = Pick(DropdownConfig, OnResizeAliases, nil)
 		local MultiSelect = PickBool(DropdownConfig, MultiAliases, false)
+		local Height = PickNumber(DropdownConfig, HeightAliases, 26)
+		local ButtonHeight = PickNumber(DropdownConfig, ButtonHeightAliases, 18)
+		local LayoutOrder = PickNumber(DropdownConfig, LayoutOrderAliases, nil)
+		local ButtonPositionY = (Height - ButtonHeight) / 2
+		local ContainerY = Height + 2
 
 		if type(OptionsList) ~= "table" then
 			OptionsList = {}
 		end
 
 		local Frame = Instance.new("Frame")
-		Frame.Size = UDim2.new(1, 0, 0, 26)
+		Frame.Size = UDim2.new(1, 0, 0, Height)
 		Frame.BackgroundTransparency = 1
+		if LayoutOrder then Frame.LayoutOrder = LayoutOrder end
 		Frame.Parent = Parent
 
 		local TextLabel = Instance.new("TextLabel")
-		TextLabel.Size = UDim2.new(1, -75, 0, 26)
+		TextLabel.Size = UDim2.new(1, -75, 0, Height)
 		TextLabel.BackgroundTransparency = 1
 		TextLabel.Text = Label
 		TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -500,8 +520,8 @@ function Library.New(Options)
 		TextLabel.Parent = Frame
 
 		local DropdownButton = Instance.new("TextButton")
-		DropdownButton.Size = UDim2.new(0, 70, 0, 18)
-		DropdownButton.Position = UDim2.new(1, -70, 0, 4)
+		DropdownButton.Size = UDim2.new(0, 70, 0, ButtonHeight)
+		DropdownButton.Position = UDim2.new(1, -70, 0, ButtonPositionY)
 		DropdownButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
 		DropdownButton.Text = (type(DefaultValue) == "string" and DefaultValue) or (OptionsList[1] or "None")
 		DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -538,7 +558,7 @@ function Library.New(Options)
 
 		local Container = Instance.new("Frame")
 		Container.Size = UDim2.new(1, 0, 0, 0)
-		Container.Position = UDim2.new(0, 0, 0, 28)
+		Container.Position = UDim2.new(0, 0, 0, ContainerY)
 		Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 		Container.Visible = false
 		Container.ClipsDescendants = true
@@ -602,7 +622,7 @@ function Library.New(Options)
 						DropdownButton.Text = Option
 						IsOpen = false
 						Container.Visible = false
-						Frame.Size = UDim2.new(1, 0, 0, 26)
+						Frame.Size = UDim2.new(1, 0, 0, Height)
 
 						if Callback then
 							Callback(Option)
@@ -623,7 +643,7 @@ function Library.New(Options)
 			Container.Visible = IsOpen
 			local TargetHeight = IsOpen and (#OptionsList * 21 + 8) or 0
 			Container.Size = UDim2.new(1, 0, 0, TargetHeight)
-			Frame.Size = UDim2.new(1, 0, 0, IsOpen and (28 + TargetHeight + 4) or 26)
+			Frame.Size = UDim2.new(1, 0, 0, IsOpen and (ContainerY + TargetHeight + 4) or Height)
 
 			if OnResizeRequested then
 				OnResizeRequested()
@@ -1579,92 +1599,19 @@ function Library.New(Options)
 		end
 
 		local function AddTextBoxModule(ModuleOptions)
-			local ModuleName = Pick(ModuleOptions, LabelAliases, "")
-			local DefaultValue = Pick(ModuleOptions, DefaultAliases, "")
-			local PlaceholderText = Pick(ModuleOptions, PlaceholderAliases, "")
-			local Callback = Pick(ModuleOptions, CallbackAliases, nil)
 			local Flag = Pick(ModuleOptions, FlagAliases, nil)
-			local NumericOnly = PickBool(ModuleOptions, NumericAliases, false)
 
-			local ModuleFrame = Instance.new("Frame")
-			ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
-			ModuleFrame.BackgroundTransparency = 1
-			ModuleFrame.LayoutOrder = ModuleCount
-			ModuleFrame.Parent = Content
-
-			local TextLabel = Instance.new("TextLabel")
-			TextLabel.Size = UDim2.new(1, -70, 1, 0)
-			TextLabel.Position = UDim2.new(0, 4, 0, 0)
-			TextLabel.BackgroundTransparency = 1
-			TextLabel.Text = ModuleName
-			TextLabel.TextColor3 = Color3.fromRGB(210, 210, 215)
-			TextLabel.Font = Enum.Font.GothamMedium
-			TextLabel.TextSize = 11
-			TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-			TextLabel.Parent = ModuleFrame
-
-			local InputBox = Instance.new("TextBox")
-			InputBox.Size = UDim2.new(0, 65, 0, 20)
-			InputBox.Position = UDim2.new(1, -65, 0, 4)
-			InputBox.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-			InputBox.Text = tostring(DefaultValue or "")
-			InputBox.PlaceholderText = PlaceholderText or ""
-			InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-			InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-			InputBox.Font = Enum.Font.Gotham
-			InputBox.TextSize = 10
-			InputBox.ClearTextOnFocus = false
-			InputBox.Parent = ModuleFrame
-			Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
-
-			if NumericOnly then
-				InputBox:GetPropertyChangedSignal("Text"):Connect(function()
-					local FilteredText = InputBox.Text:gsub("[^%d%.%-]", "")
-					local DecimalCount = select(2, FilteredText:gsub("%.", ""))
-					local MinusCount = select(2, FilteredText:gsub("%-", ""))
-
-					if DecimalCount > 1 then
-						FilteredText = FilteredText:match("^(.-)%..*$") .. "." .. FilteredText:match("^.*%.(.+)$"):gsub("%.", "")
-					end
-
-					if MinusCount > 1 or (MinusCount == 1 and FilteredText:sub(1,1) ~= "-") then
-						FilteredText = FilteredText:gsub("%-", "")
-					end
-
-					if FilteredText ~= InputBox.Text then
-						InputBox.Text = FilteredText
-					end
-				end)
+			local MergedConfig = {}
+			for Key, Value in pairs(ModuleOptions) do
+				MergedConfig[Key] = Value
 			end
+			MergedConfig.Height = Configuration.ModuleHeight
+			MergedConfig.BoxHeight = 20
+			MergedConfig.LabelIndent = 4
+			MergedConfig.LayoutOrder = ModuleCount
 
-			InputBox.FocusLost:Connect(function()
-				if Callback then
-					if NumericOnly then
-						Callback(tonumber(InputBox.Text) or 0)
-					else
-						Callback(InputBox.Text)
-					end
-				end
-			end)
-
+			local API = CreateTextBox(Content, MergedConfig)
 			ModuleCount = ModuleCount + 1
-
-			local API = {
-				Get = function()
-					if NumericOnly then return tonumber(InputBox.Text) or 0 end
-					return InputBox.Text
-				end,
-				Set = function(Value, SkipCallback)
-					InputBox.Text = tostring(Value)
-					if Callback and not SkipCallback then
-						if NumericOnly then
-							Callback(tonumber(InputBox.Text) or 0)
-						else
-							Callback(InputBox.Text)
-						end
-					end
-				end
-			}
 
 			if Flag then
 				FlagRegistry[Flag] = API
@@ -1674,205 +1621,19 @@ function Library.New(Options)
 		end
 
 		local function AddDropdownModule(ModuleOptions)
-			local ModuleName = Pick(ModuleOptions, LabelAliases, "")
-			local OptionsList = Pick(ModuleOptions, OptionsAliases, {})
-			local DefaultValue = Pick(ModuleOptions, DefaultAliases, nil)
-			local Callback = Pick(ModuleOptions, CallbackAliases, nil)
 			local Flag = Pick(ModuleOptions, FlagAliases, nil)
-			local MultiSelect = PickBool(ModuleOptions, MultiAliases, false)
 
-			if type(OptionsList) ~= "table" then
-				OptionsList = {}
+			local MergedConfig = {}
+			for Key, Value in pairs(ModuleOptions) do
+				MergedConfig[Key] = Value
 			end
+			MergedConfig.Height = Configuration.ModuleHeight
+			MergedConfig.ButtonHeight = 20
+			MergedConfig.LayoutOrder = ModuleCount
+			MergedConfig.OnResizeRequested = UpdatePanelHeight
 
-			local ModuleFrame = Instance.new("Frame")
-			ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
-			ModuleFrame.BackgroundTransparency = 1
-			ModuleFrame.LayoutOrder = ModuleCount
-			ModuleFrame.Parent = Content
-
-			local TextLabel = Instance.new("TextLabel")
-			TextLabel.Size = UDim2.new(1, -75, 0, Configuration.ModuleHeight)
-			TextLabel.Position = UDim2.new(0, 4, 0, 0)
-			TextLabel.BackgroundTransparency = 1
-			TextLabel.Text = ModuleName
-			TextLabel.TextColor3 = Color3.fromRGB(210, 210, 215)
-			TextLabel.Font = Enum.Font.GothamMedium
-			TextLabel.TextSize = 11
-			TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-			TextLabel.Parent = ModuleFrame
-
-			local DropdownButton = Instance.new("TextButton")
-			DropdownButton.Size = UDim2.new(0, 70, 0, 20)
-			DropdownButton.Position = UDim2.new(1, -70, 0, 4)
-			DropdownButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-			DropdownButton.Text = (type(DefaultValue) == "string" and DefaultValue) or (OptionsList[1] or "None")
-			DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-			DropdownButton.Font = Enum.Font.GothamMedium
-			DropdownButton.TextSize = 10
-			DropdownButton.AutoButtonColor = false
-			DropdownButton.Parent = ModuleFrame
-			Instance.new("UICorner", DropdownButton).CornerRadius = UDim.new(0, 4)
-
-			local SelectedOption = DropdownButton.Text
-			local SelectedSet = {}
-			local SelectedList = {}
-			local OptionButtons = {}
-			local IsOpen = false
-
-			local function UpdateMultiText()
-				if #SelectedList == 0 then
-					DropdownButton.Text = "None"
-				elseif #SelectedList == 1 then
-					DropdownButton.Text = SelectedList[1]
-				else
-					DropdownButton.Text = #SelectedList .. " selected"
-				end
-			end
-
-			if MultiSelect then
-				local DefaultList = type(DefaultValue) == "table" and DefaultValue or {}
-				for _, Option in ipairs(DefaultList) do
-					SelectedSet[Option] = true
-					table.insert(SelectedList, Option)
-				end
-				UpdateMultiText()
-			end
-
-			local Container = Instance.new("Frame")
-			Container.Size = UDim2.new(1, 0, 0, 0)
-			Container.Position = UDim2.new(0, 0, 0, Configuration.ModuleHeight + 2)
-			Container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-			Container.Visible = false
-			Container.ClipsDescendants = true
-			Container.Parent = ModuleFrame
-			Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 4)
-
-			local ContainerPadding = Instance.new("UIPadding")
-			ContainerPadding.PaddingTop = UDim.new(0, 4)
-			ContainerPadding.PaddingBottom = UDim.new(0, 4)
-			ContainerPadding.PaddingLeft = UDim.new(0, 4)
-			ContainerPadding.PaddingRight = UDim.new(0, 4)
-			ContainerPadding.Parent = Container
-
-			local ListLayout = Instance.new("UIListLayout")
-			ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			ListLayout.Padding = UDim.new(0, 3)
-			ListLayout.Parent = Container
-
-			local function RefreshOptions()
-				for _, Child in ipairs(Container:GetChildren()) do
-					if Child:IsA("TextButton") then Child:Destroy() end
-				end
-
-				OptionButtons = {}
-
-				for _, Option in ipairs(OptionsList) do
-					local OptionButton = Instance.new("TextButton")
-					OptionButton.Size = UDim2.new(1, 0, 0, 18)
-					OptionButton.BackgroundColor3 = (MultiSelect and SelectedSet[Option]) and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
-					OptionButton.Text = Option
-					OptionButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-					OptionButton.Font = Enum.Font.Gotham
-					OptionButton.TextSize = 10
-					OptionButton.Parent = Container
-					Instance.new("UICorner", OptionButton).CornerRadius = UDim.new(0, 3)
-					OptionButtons[Option] = OptionButton
-
-					OptionButton.MouseButton1Click:Connect(function()
-						if MultiSelect then
-							if SelectedSet[Option] then
-								SelectedSet[Option] = nil
-								for Index, Value in ipairs(SelectedList) do
-									if Value == Option then
-										table.remove(SelectedList, Index)
-										break
-									end
-								end
-							else
-								SelectedSet[Option] = true
-								table.insert(SelectedList, Option)
-							end
-
-							OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
-							UpdateMultiText()
-
-							if Callback then
-								Callback(SelectedList)
-							end
-						else
-							SelectedOption = Option
-							DropdownButton.Text = Option
-							IsOpen = false
-							Container.Visible = false
-							ModuleFrame.Size = UDim2.new(1, 0, 0, Configuration.ModuleHeight)
-							UpdatePanelHeight()
-
-							if Callback then
-								Callback(Option)
-							end
-						end
-					end)
-				end
-			end
-
-			RefreshOptions()
-
-			DropdownButton.MouseButton1Click:Connect(function()
-				IsOpen = not IsOpen
-				Container.Visible = IsOpen
-				local TargetHeight = IsOpen and (#OptionsList * 21 + 8) or 0
-				Container.Size = UDim2.new(1, 0, 0, TargetHeight)
-				ModuleFrame.Size = UDim2.new(1, 0, 0, IsOpen and (Configuration.ModuleHeight + TargetHeight + 4) or Configuration.ModuleHeight)
-				UpdatePanelHeight()
-			end)
-
+			local API = CreateDropdown(Content, MergedConfig)
 			ModuleCount = ModuleCount + 1
-
-			local API = {
-				Get = function()
-					if MultiSelect then
-						local Copy = {}
-						for _, Value in ipairs(SelectedList) do
-							table.insert(Copy, Value)
-						end
-						return Copy
-					end
-					return SelectedOption
-				end,
-				Set = function(Value, SkipCallback)
-					if MultiSelect then
-						SelectedSet = {}
-						SelectedList = {}
-
-						for _, Option in ipairs(Value or {}) do
-							SelectedSet[Option] = true
-							table.insert(SelectedList, Option)
-						end
-
-						UpdateMultiText()
-
-						for Option, OptionButton in pairs(OptionButtons) do
-							OptionButton.BackgroundColor3 = SelectedSet[Option] and Configuration.ThemeColor or Color3.fromRGB(28, 28, 35)
-						end
-
-						if Callback and not SkipCallback then
-							Callback(SelectedList)
-						end
-					else
-						SelectedOption = Value
-						DropdownButton.Text = Value
-
-						if Callback and not SkipCallback then
-							Callback(Value)
-						end
-					end
-				end,
-				UpdateOptions = function(NewOptions)
-					OptionsList = NewOptions
-					RefreshOptions()
-				end
-			}
 
 			if Flag then
 				FlagRegistry[Flag] = API
