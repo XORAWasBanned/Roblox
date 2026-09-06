@@ -19,7 +19,7 @@ getgenv().Atomizer = {
         },
     },
     Misc = {
-        ExecuteOnTeleport = false,
+        ExecuteOnTeleport = true,
         Replay = true,
         AutoEscape = true,
         OpenGates = true,
