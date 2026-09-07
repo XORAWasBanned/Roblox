@@ -19,12 +19,13 @@ getgenv().Atomizer = {
         },
     },
     Misc = {
-        ExecuteOnTeleport = false,
+        ExecuteOnTeleport = true,
         Replay = true,
         AutoEscape = true,
         OpenGates = true,
         VoteStartRaidBoss = true,
         VoteSkipBossCutscene = true,
+        RedeemCodes = true,
     },
 }
 
@@ -45,7 +46,7 @@ local Services = setmetatable({}, {
 
 local Client, Connections, RunIn, InLobby = {}, {}, {Heartbeat = {}}, workspace:GetAttribute("NoCooldowns")
 local Assets = Services.ReplicatedStorage:FindFirstChild("Assets")
-local ModulesFolder, RemotesFolder = Assets:FindFirstChild("Modules"), Assets:FindFirstChild("Remotes")
+local ModulesFolder, RemotesFolder, RequestsFolder = Assets:FindFirstChild("Modules"), Assets:FindFirstChild("Remotes"), Assets:FindFirstChild("Requests")
 local Drops, Enemies, MatchConfig = workspace:FindFirstChild("Thrown"), workspace:FindFirstChild("Zombies"), workspace:FindFirstChild("MatchConfig")
 local Modules, Remotes = {}, { Events = {}, Functions = {} }
 
@@ -59,16 +60,19 @@ local InitModules = function(WantedModules)
             Modules[Module.Name] = Success and RequiredModule or nil
         end)
     end
-end; InitModules({"ItemsData", "CombatData", "Utils", "ReplayPolicy"})
+end; InitModules({"ItemsData", "CombatData", "Utils", "ReplayPolicy", "CodeRewards"})
+
 
 local InitRemotes = function()
-    for _, Remote in RemotesFolder:GetDescendants() do
-        if Remote.ClassName == "RemoteEvent" then
-            Remotes.Events[Remote.Name] = Remote
-        elseif Remote.ClassName == "RemoteFunction" then
-            Remotes.Functions[Remote.Name] = Remote
+    local GetRemotes = function(Container) 
+        for _, Remote in Container:GetDescendants() do
+            if Remote.ClassName == "RemoteEvent" then
+                Remotes.Events[Remote.Name] = Remote
+            elseif Remote.ClassName == "RemoteFunction" then
+                Remotes.Functions[Remote.Name] = Remote
+            end
         end
-    end
+    end; GetRemotes(RemotesFolder) GetRemotes(RequestsFolder)
 end; InitRemotes()
 
 local InitClient = function()
@@ -214,24 +218,38 @@ end; if not InLobby then InitCombat() end
 
 local InitMisc = function()
     local Escaped = false RunIn.Heartbeat.Misc = function()
-        if InLobby or not Client.HUD then return end
+        if InLobby then
+            if Misc.RedeemCodes and Client.Data:FindFirstChild("Codes") and Modules.CodeRewards then
+                local Redeemed = Modules.Utils.Decode(Client.Data.Codes.Value)
+                for Code, Data in Modules.CodeRewards do
+                    if table.find(Redeemed, Code) or Data.Expired or Data.GroupRoleRequired or Data.GroupRankRequired then continue end
+                    print("Redeemed Code:", Code)
+                    Remotes.Functions.FuncInteract:InvokeServer("UseCode", Code)
+                end
+            end
+            return
+        end
+        
         local Map = workspace:FindFirstChild("Map")
         local Gates = Map and Map:FindFirstChild("Gates")
         local Objective = Map and Map:FindFirstChild("Objective")
         local Entries = Objective and Objective:FindFirstChild("Entries")
         
-        if not Client.HUD.Enabled then
-            Client.HUD.Enabled = true
+        if Client.HUD then
+            if not Client.HUD.Enabled then
+                Client.HUD.Enabled = true
+            end
+            if Misc.Replay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig.Gamemode) and Client.HUD.EndScreen.Visible then
+                Remotes.Events.Interact:FireServer("PlayAgain")
+            end
+            if Misc.VoteStartRaidBoss and Client.HUD.StartRaid.Visible then
+                Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
+            end
+            if Misc.VoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
+                Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
+            end
         end
-        if Misc.Replay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig.Gamemode) and Client.HUD.EndScreen.Visible then
-            Remotes.Events.Interact:FireServer("PlayAgain")
-        end
-        if Misc.VoteStartRaidBoss and Client.HUD.StartRaid.Visible then
-            Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
-        end
-        if Misc.VoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
-            Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
-        end
+        
         if Misc.AutoEscape and Entries and Client.RootPart and not Escaped then
             for _, Door in Entries:GetChildren() do
                 local ProximityPrompt = Door:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -242,6 +260,7 @@ local InitMisc = function()
                 Escaped = true
             end
         end
+        
         if Misc.OpenGates and Gates then
             for _, Gate in Gates:GetChildren() do
                 if Gate.Name:find("Opened") then continue end
