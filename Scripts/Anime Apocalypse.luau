@@ -4,7 +4,7 @@ getgenv().Atomizer = {
         LookAtEnemy = true,
         AutoHit = {
             Enabled = true,
-            M1s = {"Elf Mage", "Soul Reaper"},
+            M1s = {},
         },
         AutoAbilities = {
             Enabled = true,
@@ -19,7 +19,7 @@ getgenv().Atomizer = {
         },
     },
     Misc = {
-        ExecuteOnTeleport = true,
+        ExecuteOnTeleport = false,
         Replay = true,
         AutoEscape = true,
         OpenGates = true,
@@ -32,7 +32,7 @@ local Combat = Atomizer.Combat
 local Misc = Atomizer.Misc
 
 if not game:IsLoaded() then game.Loaded:Wait() end
-if Misc.ExecuteOnTeleport then queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true)) end
+--if Misc.ExecuteOnTeleport then queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true)) end
 
 local Services = setmetatable({}, {
     __index = function(Self, Name)
@@ -236,14 +236,16 @@ local InitMisc = function()
             for _, Door in Entries:GetChildren() do
                 local ProximityPrompt = Door:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if not ProximityPrompt then continue end
-                Client.RootPart.CFrame = Door:GetPivot() fireproximityprompt(ProximityPrompt) Escaped = true
+                Client.RootPart.CFrame = Door:GetPivot()
+                task.wait(0.5)
+                fireproximityprompt(ProximityPrompt) 
+                Escaped = true
             end
         end
         if Misc.OpenGates and Gates then
             for _, Gate in Gates:GetChildren() do
                 if Gate.Name:find("Opened") then continue end
                 Remotes.Events.Interact:FireServer("GateHit", Gate)
-                print("Opened Gates")
                 Gate.Name = Gate.Name.."Opened"
             end
         end
