@@ -83,8 +83,8 @@ local InitClient = function()
     Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
     Client.Data, Client.HUD = Client.Player:WaitForChild("Data"), Client.Guis:WaitForChild("HUD")
     
-    for Slot, Moveset in Modules.Utils.Decode(Client.Data.AbilitySlots.Value) do Moveset.Slot = Slot table.insert(Client.Movesets, Moveset) end
-    for Slot, Gadget in Modules.Utils.Decode(Client.Data.GadgetSlots.Value) do Gadget.Slot = Slot table.insert(Client.Gadgets, Gadget) end
+    for Slot, Moveset in Modules.Utils.Decode(Client.Data:WaitForChild("AbilitySlots").Value) do Moveset.Slot = Slot table.insert(Client.Movesets, Moveset) end
+    for Slot, Gadget in Modules.Utils.Decode(Client.Data:WaitForChild("GadgetSlots").Value) do Gadget.Slot = Slot table.insert(Client.Gadgets, Gadget) end
     
     Client.Get = function(Name)
         for _, Moveset in Client.Movesets do
