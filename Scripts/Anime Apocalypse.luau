@@ -77,11 +77,11 @@ end; InitRemotes()
 
 local InitClient = function()
     Client.Player, Client.Movesets, Client.Gadgets = Services.Players.LocalPlayer, {}, {}
-    repeat task.wait() until Client.Player:GetAttribute("Loaded")
+    --repeat task.wait() until Client.Player:GetAttribute("Loaded")
     Client.Guis, Client.Character = Client.Player:FindFirstChildOfClass("PlayerGui"), Client.Player.Character
     Client.Humanoid, Client.Head = Client.Character and Client.Character:FindFirstChildOfClass("Humanoid"), Client.Character and Client.Character:FindFirstChild("Head")
     Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
-    Client.Data, Client.HUD = Client.Player:FindFirstChild("Data"), Client.Guis:FindFirstChild("HUD")
+    Client.Data, Client.HUD = Client.Player:WaitForChild("Data"), Client.Guis:WaitForChild("HUD")
     
     for Slot, Moveset in Modules.Utils.Decode(Client.Data.AbilitySlots.Value) do Moveset.Slot = Slot table.insert(Client.Movesets, Moveset) end
     for Slot, Gadget in Modules.Utils.Decode(Client.Data.GadgetSlots.Value) do Gadget.Slot = Slot table.insert(Client.Gadgets, Gadget) end
@@ -239,7 +239,7 @@ local InitMisc = function()
             if not Client.HUD.Enabled then
                 Client.HUD.Enabled = true
             end
-            if Misc.Replay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig.Gamemode) and Client.HUD.EndScreen.Visible then
+            if Misc.Replay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig) and Client.HUD.EndScreen.Visible then
                 Remotes.Events.Interact:FireServer("PlayAgain")
             end
             if Misc.VoteStartRaidBoss and Client.HUD.StartRaid.Visible then
