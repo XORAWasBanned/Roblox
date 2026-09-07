@@ -1,3 +1,9 @@
+--[[
+
+todo list:
+auto reroll
+
+]]
 getgenv().Atomizer = {
     Combat = {
         TeleportToEnemy = true,
@@ -21,7 +27,7 @@ getgenv().Atomizer = {
     Misc = {
         ExecuteOnTeleport = true,
         Replay = true,
-        AutoEscape = false,
+        AutoEscape = true,
         OpenGates = true,
         VoteStartRaidBoss = true,
         VoteSkipBossCutscene = true,
@@ -74,6 +80,14 @@ local InitRemotes = function()
         end
     end; GetRemotes(RemotesFolder) GetRemotes(RequestsFolder)
 end; InitRemotes()
+
+local GetGamemode = function()
+    return MatchConfig.Gamemode.Value
+end
+
+local GetMap = function()
+    return MatchConfig.Map.Value
+end
 
 local InitClient = function()
     Client.Player, Client.Movesets, Client.Gadgets = Services.Players.LocalPlayer, {}, {}
@@ -230,9 +244,8 @@ local InitMisc = function()
             return
         end
         
-        local Map = workspace:FindFirstChild("Map")
-        local Gates = Map and Map:FindFirstChild("Gates")
-        local Objective = Map and Map:FindFirstChild("Objective")
+        local Map, Gamemode = workspace:FindFirstChild("Map"), GetGamemode()
+        local Gates, Objective = Map and (Map:FindFirstChild("Gates") or Map:FindFirstChild("Door")), Map and Map:FindFirstChild("Objective")
         local Entries = Objective and Objective:FindFirstChild("Entries")
         
         if Client.HUD then
@@ -242,28 +255,33 @@ local InitMisc = function()
             if Misc.Replay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig) and Client.HUD.EndScreen.Visible then
                 Remotes.Events.Interact:FireServer("PlayAgain")
             end
-            if Misc.VoteStartRaidBoss and Client.HUD.StartRaid.Visible then
-                Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
-            end
-            if Misc.VoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
-                Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
-            end
-        end
-        
-        if Misc.AutoEscape and MatchConfig.Gamemode.Value == "Survival" and Entries and Client.RootPart and not Client.HUD.EndScreen.Visible then
-            for _, Door in Entries:GetChildren() do
-                local ProximityPrompt = Door:FindFirstChildWhichIsA("ProximityPrompt", true)
-                if not ProximityPrompt then continue end
-                Client.RootPart.CFrame = MatchConfig.Map.Value == "Prison" and Door:FindFirstChild("Door"):GetPivot() or Door:GetPivot()
-                fireproximityprompt(ProximityPrompt)
+            if Gamemode == "Raid" or Gamemode == "World Boss" then
+                if Misc.VoteStartRaidBoss and Client.HUD.StartRaid.Visible then
+                    Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
+                end
+                if Misc.VoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
+                    Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
+                end
             end
         end
         
-        if Misc.OpenGates and Gates then
-            for _, Gate in Gates:GetChildren() do
-                if Gate.Name:find("Opened") then continue end
-                Remotes.Events.Interact:FireServer("GateHit", Gate)
-                Gate.Name = Gate.Name.."Opened"
+        if Gamemode == "Survival" then
+            if Misc.AutoEscape and Entries and Client.RootPart and not Client.HUD.EndScreen.Visible then
+                for _, Entry in Entries:GetChildren() do
+                    local ProximityPrompt = Entry:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if not ProximityPrompt then continue end
+                    local Map = GetMap()
+                    Client.RootPart.CFrame = Map == "Shibuya" and Entry:GetPivot() or Map == "Prison" and Entry:FindFirstChild("Door"):GetPivot()
+                    fireproximityprompt(ProximityPrompt)
+                end
+            end
+            
+            if Misc.OpenGates and Gates then
+                for _, Gate in Gates:GetChildren() do
+                    if Gate.Name:find("Opened") then continue end
+                    Remotes.Events.Interact:FireServer("GateHit", Gate)
+                    Gate.Name = Gate.Name.."Opened"
+                end
             end
         end
     end
