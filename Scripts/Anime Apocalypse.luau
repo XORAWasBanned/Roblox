@@ -21,7 +21,7 @@ getgenv().Atomizer = {
     Misc = {
         ExecuteOnTeleport = true,
         Replay = true,
-        AutoEscape = true,
+        AutoEscape = false,
         OpenGates = true,
         VoteStartRaidBoss = true,
         VoteSkipBossCutscene = true,
@@ -217,7 +217,7 @@ local InitCombat = function()
 end; if not InLobby then InitCombat() end
 
 local InitMisc = function()
-    local Escaped = false RunIn.Heartbeat.Misc = function()
+    RunIn.Heartbeat.Misc = function()
         if InLobby then
             if Misc.RedeemCodes and Client.Data:FindFirstChild("Codes") and Modules.CodeRewards then
                 local Redeemed = Modules.Utils.Decode(Client.Data.Codes.Value)
@@ -250,14 +250,12 @@ local InitMisc = function()
             end
         end
         
-        if Misc.AutoEscape and Entries and Client.RootPart and not Escaped then
+        if Misc.AutoEscape and MatchConfig.Gamemode.Value == "Survival" and Entries and Client.RootPart and not Client.HUD.EndScreen.Visible then
             for _, Door in Entries:GetChildren() do
                 local ProximityPrompt = Door:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if not ProximityPrompt then continue end
-                Client.RootPart.CFrame = Door:GetPivot()
-                task.wait(0.5)
-                fireproximityprompt(ProximityPrompt) 
-                Escaped = true
+                Client.RootPart.CFrame = MatchConfig.Map.Value == "Prison" and Door:FindFirstChild("Door"):GetPivot() or Door:GetPivot()
+                fireproximityprompt(ProximityPrompt)
             end
         end
         
