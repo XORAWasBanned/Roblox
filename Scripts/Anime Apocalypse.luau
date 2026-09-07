@@ -32,7 +32,7 @@ local Combat = Atomizer.Combat
 local Misc = Atomizer.Misc
 
 if not game:IsLoaded() then game.Loaded:Wait() end
---if Misc.ExecuteOnTeleport then queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true)) end
+if Misc.ExecuteOnTeleport then queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true)) end
 
 local Services = setmetatable({}, {
     __index = function(Self, Name)
