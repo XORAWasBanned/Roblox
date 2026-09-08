@@ -1,3 +1,9 @@
+--[[
+
+todo list:
+auto reroll
+
+]]
 getgenv().Atomizer = {
     Combat = {
         TeleportToEnemy = false,
@@ -26,8 +32,8 @@ getgenv().Atomizer = {
             UseLuckySpin = false,
         },
         Gadget = {
-            Enabled = true,
-            RollFor = "EMT",
+            Enabled = false,
+            RollFor = "",
             RollSlot = 4,
             UseLuckySpin = true,
         },
@@ -150,6 +156,10 @@ local InitClient = function()
         Died()
     end)
     
+    for _, Connection in getconnections(Client.Player.Idled) do
+        Connection:Disconnect()
+    end
+    
     RunIn.Heartbeat.Client = function()
         GetCharactersAndGadgets() GetEquipped("Characters") GetEquipped("Gadgets")
     end
@@ -247,76 +257,67 @@ local InitCombat = function()
     end
 end; if not InLobby then InitCombat() end
 
-local InitAutoRoll = function()
-    local Rolled, NotifiedAbout, LastRollTime, Rolling, RarityColors, Traits = {}, {}, {}, {}, {Rare = "Blue", Legendary = "Gold", Epic = "Purple", Mythic = "Red", Supreme = "Lime", Majestic = "Red"}, {"Power", "Swift", "Timer", "Fortune", "Zombie", "Hunter", "Reaper", "Flash", "Shinigami"}
+local RollFor = function(Type)
+    local Settings = AutoRoll[Type]
+    if not (Settings.Enabled and not Rolled[Type] and not Rolling[Type] and tick() - (LastRollTime[Type] or 0) >= 0.05) then return end
     
-    local RollFor = function(Type)
-        local Settings = AutoRoll[Type]
-        if not (Settings.Enabled and not Rolled[Type] and not Rolling[Type] and tick() - (LastRollTime[Type] or 0) >= 0.05) then return end
-        
-        if Type == "Trait" then
-            local RollingFor, RollingSlot = Settings.RollFor, Client.Characters[Settings.RollSlot]
-            local RerollItem, ShouldRoll = Modules.Utils.GetItem(Client.Player, "Trait Reroll"), nil
-            local HasRerolls = RerollItem and (RerollItem.Amount or 0) > 0
-            ShouldRoll = table.find(Traits, RollingFor) and RollingSlot and RollingSlot.Trait ~= RollingFor and HasRerolls
-            
-            if ShouldRoll then
-                NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
-                local Trait = Remotes.Functions.FuncInteract:InvokeServer("RollTrait", RollingSlot.Slot)
-                Rolling[Type] = nil
-                if Trait == RollingFor then
-                    Rolled[Type] = true
-                    Modules.Utils.Notify("Got "..Trait.." Trait!", "Gold", 5)
-                    task.delay(1, function() Rolled[Type] = nil end)
-                end
-            else
-                local Reason
-                if not table.find(Traits, RollingFor) then Reason = "Rolling Trait Does Not Exist: "..tostring(RollingFor)
-                elseif not RollingSlot then Reason = "Invaild Trait Rolling Slot: "..tostring(Settings.RollSlot)
-                elseif not HasRerolls then Reason = "No Trait Rerolls Left" end
-                
-                if Reason and Reason ~= NotifiedAbout[Type] then
-                    NotifiedAbout[Type] = Reason
-                    Modules.Utils.Notify(Reason, "Red")
-                end
-            end
-            return
-        end
-        
-        local IsGadget = Type == "Gadget"
-        local Slots, ItemsData, LuckySpins, NormalSpins, RollingFor, UseLuckySpin = IsGadget and Client.Gadgets or Client.Characters, IsGadget and Modules.ItemsData.Gadgets or Modules.ItemsData.Abilities, IsGadget and Client.Data.LuckyGadgetSpins or Client.Data.LuckyAbilitySpins, IsGadget and Client.Data.NormalGadgetSpins or Client.Data.NormalAbilitySpins, Settings.RollFor, Settings.UseLuckySpin
-        local RollingSlot = Slots[Settings.RollSlot]
-        local ShouldRoll = ItemsData[RollingFor] and RollingSlot and not RollingSlot.Locked and RollingSlot.Name ~= RollingFor and (UseLuckySpin and LuckySpins.Value > 0 or not UseLuckySpin and (NormalSpins.Value > 0 or Client.Data.Coins.Value >= 3000))
+    if Type == "Trait" then
+        local RollingFor, RollingSlot = Settings.RollFor, Client.Characters[Settings.RollSlot]
+        local RerollItem, ShouldRoll = Modules.Utils.GetItem(Client.Player, "Trait Reroll"), nil
+        local HasRerolls = RerollItem and (RerollItem.Amount or 0) > 0
+        ShouldRoll = table.find(Traits, RollingFor) and RollingSlot and RollingSlot.Trait ~= RollingFor and HasRerolls
         
         if ShouldRoll then
             NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
-            local Character, Rarity = Remotes.Functions.FuncInteract:InvokeServer("RollAbility", "Slot"..Settings.RollSlot, UseLuckySpin and "Lucky" or "Normal")
+            local Trait = Remotes.Functions.FuncInteract:InvokeServer("RollTrait", RollingSlot.Slot)
             Rolling[Type] = nil
-            if Character == RollingFor then
+            if Trait == RollingFor then
                 Rolled[Type] = true
-                Modules.Utils.Notify("Got "..Character.." ("..Rarity..")!", RarityColors[Rarity] or "White", 5)
+                Modules.Utils.Notify("Got "..Trait.." Trait!", "Gold", 5)
                 task.delay(1, function() Rolled[Type] = nil end)
             end
         else
             local Reason
-            if not ItemsData[RollingFor] then Reason = "Rolling "..Type.." Does Not Exist: "..tostring(RollingFor)
-            elseif not RollingSlot then Reason = "Invaild Rolling Slot:"..tostring(Settings.RollSlot)
-            elseif RollingSlot.Locked then Reason = "Slot "..Settings.RollSlot.." Is Locked"
-            elseif UseLuckySpin and LuckySpins.Value <= 0 then Reason = "No Lucky Spins Left"
-            elseif not UseLuckySpin and NormalSpins.Value <= 0 and Client.Data.Coins.Value < 3000 then Reason = "Cannot Afford Normal Spin" end
+            if not table.find(Traits, RollingFor) then Reason = "Rolling Trait Does Not Exist: "..tostring(RollingFor)
+            elseif not RollingSlot then Reason = "Invaild Trait Rolling Slot: "..tostring(Settings.RollSlot)
+            elseif not HasRerolls then Reason = "No Trait Rerolls Left" end
             
             if Reason and Reason ~= NotifiedAbout[Type] then
                 NotifiedAbout[Type] = Reason
                 Modules.Utils.Notify(Reason, "Red")
             end
         end
+        return
     end
     
-    RunIn.Heartbeat.AutoRoll = function()
-        RollFor("Character") RollFor("Gadget") RollFor("Trait")
+    local IsCharacter = Type == "Character"
+    local Slots, ItemsData, LuckySpins, NormalSpins, RollingFor, UseLuckySpin = IsCharacter and Client.Characters or Client.Gadgets, IsCharacter and Modules.ItemsData.Abilities or Modules.ItemsData.Gadgets, IsCharacter and Client.Data.LuckyAbilitySpins or Client.Data.LuckyGadgetSpins, IsCharacter and Client.Data.NormalAbilitySpins or Client.Data.NormalGadgetSpins, Settings.RollFor, Settings.UseLuckySpin
+    local RollingSlot = Slots[Settings.RollSlot]
+    local ShouldRoll = ItemsData[RollingFor] and RollingSlot and not RollingSlot.Locked and RollingSlot.Name ~= RollingFor and (UseLuckySpin and LuckySpins.Value > 0 or not UseLuckySpin and (NormalSpins.Value > 0 or Client.Data.Coins.Value >= 3000))
+    
+    if ShouldRoll then
+        NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
+        local Character, Rarity = Remotes.Functions.FuncInteract:InvokeServer(IsCharacter and "RollAbility" or "RollGadget", "Slot"..Settings.RollSlot, UseLuckySpin and "Lucky" or "Normal")
+        Rolling[Type] = nil
+        if Character == RollingFor then
+            Rolled[Type] = true
+            Modules.Utils.Notify("Got "..Character.." ("..Rarity..")!", RarityColors[Rarity] or "White", 5)
+            task.delay(1, function() Rolled[Type] = nil end)
+        end
+    else
+        local Reason
+        if not ItemsData[RollingFor] then Reason = "Rolling "..Type.." Does Not Exist: "..tostring(RollingFor)
+        elseif not RollingSlot then Reason = "Invaild Rolling Slot:"..tostring(Settings.RollSlot)
+        elseif RollingSlot.Locked then Reason = "Slot "..Settings.RollSlot.." Is Locked"
+        elseif UseLuckySpin and LuckySpins.Value <= 0 then Reason = "No Lucky Spins Left"
+        elseif not UseLuckySpin and NormalSpins.Value <= 0 and Client.Data.Coins.Value < 3000 then Reason = "Cannot Afford Normal Spin" end
+        
+        if Reason and Reason ~= NotifiedAbout[Type] then
+            NotifiedAbout[Type] = Reason
+            Modules.Utils.Notify(Reason, "Red")
+        end
     end
-end; if InLobby then InitAutoRoll() end
-
+end
 
 local InitMisc = function()
     RunIn.Heartbeat.Misc = function()
@@ -390,5 +391,3 @@ Drops.ChildAdded:Connect(function(Child)
         Drop.Pickup:FireServer()
     end
 end)
-
-getconnections(Player.Idled)
