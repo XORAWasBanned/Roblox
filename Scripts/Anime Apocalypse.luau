@@ -251,6 +251,10 @@ local InitCombat = function()
         local ShowEnemies = Enemies:FindFirstChild("ShowEnemies") or Instance.new("Highlight", Enemies)
         ShowEnemies.Name = "ShowEnemies"
         ShowEnemies.Enabled = false
+        pcall(function()
+            ShowEnemies.Parent = nil
+            ShowEnemies.Parent = ShowEnemies
+        end)
         
         local Enemy = GetTarget()
         if not Enemy then return end
