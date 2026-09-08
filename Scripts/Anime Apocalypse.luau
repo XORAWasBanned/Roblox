@@ -253,7 +253,7 @@ local InitCombat = function()
         ShowEnemies.Enabled = false
         pcall(function()
             ShowEnemies.Parent = nil
-            ShowEnemies.Parent = ShowEnemies
+            ShowEnemies.Parent = Enemies
         end)
         
         local Enemy = GetTarget()
