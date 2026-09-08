@@ -114,10 +114,10 @@ local InitClient = function()
     
     Client.Get = function(Name)
         for _, Character in Client.Characters do
-            if Character.Name == Name then return Character end
+            if Character.Name:lower() == Name:lower() then return Character end
         end
         for _, Gadget in Client.Gadgets do
-            if Gadget.Name == Name then return Gadget end
+            if Gadget.Name:lower() == Name:lower() then return Gadget end
         end
     end
     
@@ -127,10 +127,17 @@ local InitClient = function()
     end
     
     local function GetEquipped(Slots)
+        local Multiple = Slots == "Characters"
+        local EquippedList = Multiple and {}
         for _, Slot in Client[Slots] do
             if not Slot.Equipped then continue end
-            Client[Slots].Equipped = Slot
+            if Multiple then
+                table.insert(EquippedList, Slot)
+            else
+                Client[Slots].Equipped = Slot
+            end
         end
+        if Multiple then Client[Slots].Equipped = EquippedList end
     end
     
     local function Died()
@@ -175,6 +182,21 @@ local InitCombat = function()
             Target = {Config = Config, Character = Enemy, RootPart = RootPart, CFrame = RootPart.CFrame, Distance = Distance, IsBoss = IsBoss}
         end
         return Target.RootPart and Target or nil
+    end
+    
+    local GetBestM1Character = function()
+        local Best = {TotalDamage = -math.huge}
+        for _, Character in Client.Characters.Equipped do
+            local CombatData, TotalDamage = Modules.CombatData[Character.Name], 0
+            if CombatData then
+                for _, Attack in CombatData do
+                    TotalDamage += Attack.Damage or 0
+                end
+            end
+            if Best.TotalDamage >= TotalDamage then continue end
+            Best = {Character = Character, TotalDamage = TotalDamage}
+        end
+        return Best.Character
     end
     
     local IsM1Ready = function()
@@ -234,19 +256,20 @@ local InitCombat = function()
         
         if Combat.AutoHit.Enabled then
             local M1s = Combat.AutoHit.M1s
-            Fire(#M1s > 0 and M1s[math.random(1, #M1s)] or Client.Characters.Equipped.Name, "M1")
+            local BestCharacter = #M1s == 0 and GetBestM1Character()
+            Fire(#M1s > 0 and M1s[math.random(1, #M1s)] or (BestCharacter and BestCharacter.Name), "M1")
         end
         
         if Combat.AutoAbilities.Enabled then
             for Ability, Characters in ipairs(Combat.AutoAbilities) do
-                local Character = #Characters > 0 and Client.Get(Characters[math.random(1, #Characters)]) or Client.Characters.Equipped
+                local Character = #Characters > 0 and Client.Get(Characters[math.random(1, #Characters)]) or Client.Characters.Equipped[1]
                 if Character then Fire(Character.Name, "Ability", Ability) end
             end
         end
         
         if Combat.AutoGadgets.Enabled then
             local Gadgets = Combat.AutoGadgets.Gadgets
-            Fire(#Gadgets > 0 and Gadgets[math.random(1, #Gadgets)] or Client.Gadgets.Equipped.Name, "Gadget")
+            Fire(#Gadgets > 0 and Gadgets[math.random(1, #Gadgets)] or (Client.Gadgets.Equipped and Client.Gadgets.Equipped.Name), "Gadget")
         end
     end
 end; if not InLobby then InitCombat() end
@@ -328,7 +351,7 @@ local InitMisc = function()
         end
         
         local Map, Gamemode = workspace:FindFirstChild("Map"), GetGamemode()
-        local Gates, Objective = Map and (Map:FindFirstChild("Gates") or Map:FindFirstChild("Door")), Map and Map:FindFirstChild("Objective")
+        local Gates, Objective = Map and (Map:FindFirstChild("Gates") or Map:FindFirstChild("Door") or Map:FindFirstChild("Model")), Map and Map:FindFirstChild("Objective")
         local Entries = Objective and Objective:FindFirstChild("Entries")
         
         if Client.HUD then
@@ -361,7 +384,7 @@ local InitMisc = function()
             
             if Misc.AutoOpenGates and Gates then
                 for _, Gate in Gates:GetChildren() do
-                    if Gate.Name:find("Opened") then continue end
+                    if not Gate.Name:find("Gate") or Gate.Name:find("Opened") then continue end
                     Remotes.Events.Interact:FireServer("GateHit", Gate)
                     Gate.Name = Gate.Name.."Opened"
                 end
