@@ -1,12 +1,6 @@
---[[
-
-todo list:
-auto reroll
-
-]]
 getgenv().Atomizer = {
     Combat = {
-        TeleportToEnemy = false,
+        TeleportToEnemy = true,
         LookAtEnemy = true,
         AutoHit = {
             Enabled = true,
@@ -14,10 +8,10 @@ getgenv().Atomizer = {
         },
         AutoAbilities = {
             Enabled = true,
-            [1] = {},
-            [2] = {},
-            [3] = {},
-            [4] = {"Soul Repear"}
+            [1] = {"King Of Greed"},
+            [2] = {"King Of Greed"},
+            [3] = {"King Of Greed"},
+            [4] = {"Soul Repear"},
         },
         AutoGadgets = {
             Enabled = true,
