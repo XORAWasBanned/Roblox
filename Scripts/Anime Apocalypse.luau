@@ -11,7 +11,7 @@ getgenv().Atomizer = {
             [1] = {"King Of Greed"},
             [2] = {"King Of Greed"},
             [3] = {"King Of Greed"},
-            [4] = {"Soul Repear"},
+            [4] = {"Soul Reaper"},
         },
         AutoGadgets = {
             Enabled = true,
@@ -45,7 +45,7 @@ getgenv().Atomizer = {
         AutoVoteStartRaidBoss = true,
         AutoVoteSkipBossCutscene = true,
         AutoRedeemCodes = true,
-        AutoPickupLoot = true,
+        AutoPickUpLoot = true,
     },
 }
 
@@ -113,31 +113,40 @@ local InitClient = function()
     Client.Data, Client.HUD = Client.Player:WaitForChild("Data"), Client.Guis:WaitForChild("HUD")
     
     Client.Get = function(Name)
-        for _, Character in Client.Characters do
+        for _, Character in ipairs(Client.Characters) do
             if Character.Name:lower() == Name:lower() then return Character end
         end
-        for _, Gadget in Client.Gadgets do
+        for _, Gadget in ipairs(Client.Gadgets) do
             if Gadget.Name:lower() == Name:lower() then return Gadget end
         end
     end
     
     local function GetCharactersAndGadgets()
-        for Slot, Character in Modules.Utils.Decode(Client.Data:WaitForChild("AbilitySlots").Value) do Character.Slot = Slot Client.Characters[tonumber(string.match(Slot, "%d+"))] = Character end
-        for Slot, Gadget in Modules.Utils.Decode(Client.Data:WaitForChild("GadgetSlots").Value) do Gadget.Slot = Slot Client.Gadgets[tonumber(string.match(Slot, "%d+"))] = Gadget end
+        local CharactersMastery = Modules.Utils.Decode(Client.Data:WaitForChild("AbilityMastery").Value)
+        for Slot, Character in Modules.Utils.Decode(Client.Data:WaitForChild("AbilitySlots").Value) do
+            local CharacterMastery = CharactersMastery[Character.Name] or {}
+            Character.Slot, Character.Mastery, Character.Upgrades = Slot, {Level = CharacterMastery.Level or 0, Exp = CharacterMastery.EXP or 0}, CharactersMastery.Upgrades or {}
+            Client.Characters[tonumber(string.match(Slot, "%d+"))] = Character
+        end
+        for Slot, Gadget in Modules.Utils.Decode(Client.Data:WaitForChild("GadgetSlots").Value) do
+            local Data = Modules.ItemsData.Gadgets[Gadget.Name] or {}
+            Gadget.Slot, Gadget.MaxMeter = Slot, Data.GadgetMeter or math.huge
+            Client.Gadgets[tonumber(string.match(Slot, "%d+"))] = Gadget 
+        end
     end
     
     local function GetEquipped(Slots)
-        local Multiple = Slots == "Characters"
-        local EquippedList = Multiple and {}
+        local IsCharacters = Slots == "Characters"
+        local EquippedList = IsCharacters and {}
         for _, Slot in Client[Slots] do
             if not Slot.Equipped then continue end
-            if Multiple then
+            if IsCharacters then
                 table.insert(EquippedList, Slot)
             else
                 Client[Slots].Equipped = Slot
             end
         end
-        if Multiple then Client[Slots].Equipped = EquippedList end
+        if IsCharacters then Client[Slots].Equipped = EquippedList end
     end
     
     local function Died()
@@ -184,15 +193,12 @@ local InitCombat = function()
         return Target.RootPart and Target or nil
     end
     
-    local GetBestM1Character = function()
+    local GetBestM1Character = function(MaxMaseryRequired)
         local Best = {TotalDamage = -math.huge}
-        for _, Character in Client.Characters.Equipped do
+        for _, Character in ipairs(Client.Characters) do
+            if MaxMaseryRequired and Character.Mastery.Level < 100 then continue end
             local CombatData, TotalDamage = Modules.CombatData[Character.Name], 0
-            if CombatData then
-                for _, Attack in CombatData do
-                    TotalDamage += Attack.Damage or 0
-                end
-            end
+            if CombatData then for _, Attack in CombatData do TotalDamage += Attack.Damage or 0 end end
             if Best.TotalDamage >= TotalDamage then continue end
             Best = {Character = Character, TotalDamage = TotalDamage}
         end
@@ -200,9 +206,7 @@ local InitCombat = function()
     end
     
     local IsM1Ready = function()
-        local CurrentTime = workspace:GetServerTimeNow()
-        local AttackSpeed = Modules.Utils.GetTraitBuffs(Client.Player).AttackSpeedMulti or 1
-        local HasteBoost = Client.Character and Client.Character:FindFirstChild("HasteBoost")
+        local CurrentTime, AttackSpeed, HasteBoost = workspace:GetServerTimeNow(), Modules.Utils.GetTraitBuffs(Client.Player).AttackSpeedMulti or 1, Client.Character and Client.Character:FindFirstChild("HasteBoost")
         if HasteBoost then AttackSpeed *= HasteBoost.Value end
         return M1.Cooldown / AttackSpeed <= CurrentTime - M1.LastTime, CurrentTime, AttackSpeed
     end
@@ -219,10 +223,9 @@ local InitCombat = function()
     
     local Fire = function(Name, Type, ...)
         if Type == "M1" then
-            local Ready, CurrentTime, AttackSpeed = IsM1Ready()
-            if not Ready then return end
             local Combat = Modules.CombatData[Name]
-            if not Combat then return end
+            local Ready, CurrentTime, AttackSpeed = IsM1Ready()
+            if not (Ready and Combat) then return end
             if CurrentTime - M1.LastTime > 1 then M1.Hit = 1 else M1.Hit = M1.Hit % 4 + 1 end
             local AttackData = Combat["LightAttack" .. M1.Hit]
             if not AttackData then return end
@@ -233,8 +236,8 @@ local InitCombat = function()
             if not (Ability and Character and IsAbilityReady(Ability)) then return end
             Remotes.Events.Interact:FireServer("Ability", Ability, Character.Slot, Name, "Began")
         elseif Type == "Gadget" then
-            local Gadget, Data, Meter = Client.Get(Name), Modules.ItemsData.Gadgets[Name], Client.Player:FindFirstChild("GadgetMeter")
-            if not (Gadget and Data and Meter and Meter.Value >= Data.GadgetMeter) then return end
+            local Gadget, Meter = Client.Get(Name),  Client.Player:FindFirstChild("GadgetMeter")
+            if not (Gadget and Meter and Meter.Value >= Gadget.MaxMeter) then return end
             Remotes.Events.Interact:FireServer("Gadget", Gadget.Slot, Name, "Began")
         end
     end
@@ -245,8 +248,13 @@ local InitCombat = function()
     
     RunIn.Heartbeat.Combat = function()
         if not Client.RootPart then return end
+        local ShowEnemies = Enemies:FindFirstChild("ShowEnemies") or Instance.new("Highlight", Enemies)
+        ShowEnemies.Name = "ShowEnemies"
+        ShowEnemies.Enabled = false
+        
         local Enemy = GetTarget()
         if not Enemy then return end
+        
         if Combat.TeleportToEnemy then
             local TargetPosition = Enemy.CFrame.p - Enemy.CFrame.LookVector * 10
             Client.RootPart.Velocity, Client.RootPart.CFrame = vector.zero, CFrame.lookAt(TargetPosition, Enemy.CFrame.p)
@@ -256,85 +264,94 @@ local InitCombat = function()
         
         if Combat.AutoHit.Enabled then
             local M1s = Combat.AutoHit.M1s
-            local BestCharacter = #M1s == 0 and GetBestM1Character()
-            Fire(#M1s > 0 and M1s[math.random(1, #M1s)] or (BestCharacter and BestCharacter.Name), "M1")
+            local Character = #M1s > 0 and M1s[math.random(1, #M1s)] or GetBestM1Character()
+            if Character then Fire(Character.Name, "M1") end
         end
         
         if Combat.AutoAbilities.Enabled then
             for Ability, Characters in ipairs(Combat.AutoAbilities) do
-                local Character = #Characters > 0 and Client.Get(Characters[math.random(1, #Characters)]) or Client.Characters.Equipped[1]
+                local Character = #Characters > 0 and Client.Get(Characters[math.random(1, #Characters)]) or GetBestM1Character(Ability == 4)
                 if Character then Fire(Character.Name, "Ability", Ability) end
             end
         end
         
         if Combat.AutoGadgets.Enabled then
             local Gadgets = Combat.AutoGadgets.Gadgets
-            Fire(#Gadgets > 0 and Gadgets[math.random(1, #Gadgets)] or (Client.Gadgets.Equipped and Client.Gadgets.Equipped.Name), "Gadget")
+            local Gadget = #Gadgets > 0 and Gadgets[math.random(1, #Gadgets)] or Client.Gadgets.Equipped and Client.Gadgets.Equipped.Name
+            if Gadget then Fire(Gadget, "Gadget") end
         end
     end
 end; if not InLobby then InitCombat() end
 
-local RollFor = function(Type)
-    local Settings = AutoRoll[Type]
-    if not (Settings.Enabled and not Rolled[Type] and not Rolling[Type] and tick() - (LastRollTime[Type] or 0) >= 0.05) then return end
+local InitAutoRoll = function()
+    local Rolled, NotifiedAbout, LastRollTime, Rolling, RarityColors, Traits = {}, {}, {}, {}, {Rare = "Blue", Legendary = "Gold", Epic = "Purple", Mythic = "Red", Supreme = "Lime", Majestic = "Red"}, {"Power", "Swift", "Timer", "Fortune", "Zombie", "Hunter", "Reaper", "Flash", "Shinigami"}
     
-    if Type == "Trait" then
-        local RollingFor, RollingSlot = Settings.RollFor, Client.Characters[Settings.RollSlot]
-        local RerollItem, ShouldRoll = Modules.Utils.GetItem(Client.Player, "Trait Reroll"), nil
-        local HasRerolls = RerollItem and (RerollItem.Amount or 0) > 0
-        ShouldRoll = table.find(Traits, RollingFor) and RollingSlot and RollingSlot.Trait ~= RollingFor and HasRerolls
+    local RollFor = function(Type)
+        local Settings = AutoRoll[Type]
+        if not (Settings.Enabled and not Rolled[Type] and not Rolling[Type] and tick() - (LastRollTime[Type] or 0) >= 0.05) then return end
+        
+        if Type == "Trait" then
+            local RollingFor, RollingSlot = Settings.RollFor, Client.Characters[Settings.RollSlot]
+            local RerollItem, ShouldRoll = Modules.Utils.GetItem(Client.Player, "Trait Reroll"), nil
+            local HasRerolls = RerollItem and (RerollItem.Amount or 0) > 0
+            ShouldRoll = table.find(Traits, RollingFor) and RollingSlot and RollingSlot.Trait ~= RollingFor and HasRerolls
+            
+            if ShouldRoll then
+                NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
+                local Trait = Remotes.Functions.FuncInteract:InvokeServer("RollTrait", RollingSlot.Slot)
+                Rolling[Type] = nil
+                if Trait == RollingFor then
+                    Rolled[Type] = true
+                    Modules.Utils.Notify("Got "..Trait.." Trait!", "Gold", 5)
+                    task.delay(1, function() Rolled[Type] = nil end)
+                end
+            else
+                local Reason
+                if not table.find(Traits, RollingFor) then Reason = "Rolling Trait Does Not Exist: "..tostring(RollingFor)
+                elseif not RollingSlot then Reason = "Invaild Trait Rolling Slot: "..tostring(Settings.RollSlot)
+                elseif not HasRerolls then Reason = "No Trait Rerolls Left" end
+                
+                if Reason and Reason ~= NotifiedAbout[Type] then
+                    NotifiedAbout[Type] = Reason
+                    Modules.Utils.Notify(Reason, "Red")
+                end
+            end
+            return
+        end
+        
+        local IsCharacter = Type == "Character"
+        local Slots, ItemsData, LuckySpins, NormalSpins, RollingFor, UseLuckySpin = IsCharacter and Client.Characters or Client.Gadgets, IsCharacter and Modules.ItemsData.Abilities or Modules.ItemsData.Gadgets, IsCharacter and Client.Data.LuckyAbilitySpins or Client.Data.LuckyGadgetSpins, IsCharacter and Client.Data.NormalAbilitySpins or Client.Data.NormalGadgetSpins, Settings.RollFor, Settings.UseLuckySpin
+        local RollingSlot = Slots[Settings.RollSlot]
+        local ShouldRoll = ItemsData[RollingFor] and RollingSlot and not RollingSlot.Locked and RollingSlot.Name ~= RollingFor and (UseLuckySpin and LuckySpins.Value > 0 or not UseLuckySpin and (NormalSpins.Value > 0 or Client.Data.Coins.Value >= 3000))
         
         if ShouldRoll then
             NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
-            local Trait = Remotes.Functions.FuncInteract:InvokeServer("RollTrait", RollingSlot.Slot)
+            local Character, Rarity = Remotes.Functions.FuncInteract:InvokeServer(IsCharacter and "RollAbility" or "RollGadget", "Slot"..Settings.RollSlot, UseLuckySpin and "Lucky" or "Normal")
             Rolling[Type] = nil
-            if Trait == RollingFor then
+            if Character == RollingFor then
                 Rolled[Type] = true
-                Modules.Utils.Notify("Got "..Trait.." Trait!", "Gold", 5)
+                Modules.Utils.Notify("Got "..Character.." ("..Rarity..")!", RarityColors[Rarity] or "White", 5)
                 task.delay(1, function() Rolled[Type] = nil end)
             end
         else
             local Reason
-            if not table.find(Traits, RollingFor) then Reason = "Rolling Trait Does Not Exist: "..tostring(RollingFor)
-            elseif not RollingSlot then Reason = "Invaild Trait Rolling Slot: "..tostring(Settings.RollSlot)
-            elseif not HasRerolls then Reason = "No Trait Rerolls Left" end
+            if not ItemsData[RollingFor] then Reason = "Rolling "..Type.." Does Not Exist: "..tostring(RollingFor)
+            elseif not RollingSlot then Reason = "Invaild Rolling Slot:"..tostring(Settings.RollSlot)
+            elseif RollingSlot.Locked then Reason = "Slot "..Settings.RollSlot.." Is Locked"
+            elseif UseLuckySpin and LuckySpins.Value <= 0 then Reason = "No Lucky Spins Left"
+            elseif not UseLuckySpin and NormalSpins.Value <= 0 and Client.Data.Coins.Value < 3000 then Reason = "Cannot Afford Normal Spin" end
             
             if Reason and Reason ~= NotifiedAbout[Type] then
                 NotifiedAbout[Type] = Reason
                 Modules.Utils.Notify(Reason, "Red")
             end
         end
-        return
     end
     
-    local IsCharacter = Type == "Character"
-    local Slots, ItemsData, LuckySpins, NormalSpins, RollingFor, UseLuckySpin = IsCharacter and Client.Characters or Client.Gadgets, IsCharacter and Modules.ItemsData.Abilities or Modules.ItemsData.Gadgets, IsCharacter and Client.Data.LuckyAbilitySpins or Client.Data.LuckyGadgetSpins, IsCharacter and Client.Data.NormalAbilitySpins or Client.Data.NormalGadgetSpins, Settings.RollFor, Settings.UseLuckySpin
-    local RollingSlot = Slots[Settings.RollSlot]
-    local ShouldRoll = ItemsData[RollingFor] and RollingSlot and not RollingSlot.Locked and RollingSlot.Name ~= RollingFor and (UseLuckySpin and LuckySpins.Value > 0 or not UseLuckySpin and (NormalSpins.Value > 0 or Client.Data.Coins.Value >= 3000))
-    
-    if ShouldRoll then
-        NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
-        local Character, Rarity = Remotes.Functions.FuncInteract:InvokeServer(IsCharacter and "RollAbility" or "RollGadget", "Slot"..Settings.RollSlot, UseLuckySpin and "Lucky" or "Normal")
-        Rolling[Type] = nil
-        if Character == RollingFor then
-            Rolled[Type] = true
-            Modules.Utils.Notify("Got "..Character.." ("..Rarity..")!", RarityColors[Rarity] or "White", 5)
-            task.delay(1, function() Rolled[Type] = nil end)
-        end
-    else
-        local Reason
-        if not ItemsData[RollingFor] then Reason = "Rolling "..Type.." Does Not Exist: "..tostring(RollingFor)
-        elseif not RollingSlot then Reason = "Invaild Rolling Slot:"..tostring(Settings.RollSlot)
-        elseif RollingSlot.Locked then Reason = "Slot "..Settings.RollSlot.." Is Locked"
-        elseif UseLuckySpin and LuckySpins.Value <= 0 then Reason = "No Lucky Spins Left"
-        elseif not UseLuckySpin and NormalSpins.Value <= 0 and Client.Data.Coins.Value < 3000 then Reason = "Cannot Afford Normal Spin" end
-        
-        if Reason and Reason ~= NotifiedAbout[Type] then
-            NotifiedAbout[Type] = Reason
-            Modules.Utils.Notify(Reason, "Red")
-        end
+    RunIn.Heartbeat.AutoRoll = function()
+        RollFor("Character") RollFor("Gadget") RollFor("Trait")
     end
-end
+end; if InLobby then InitAutoRoll() end
 
 local InitMisc = function()
     RunIn.Heartbeat.Misc = function()
@@ -361,18 +378,16 @@ local InitMisc = function()
             if Misc.AutoReplay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig) and Client.HUD.EndScreen.Visible then
                 Remotes.Events.Interact:FireServer("PlayAgain")
             end
-            if Gamemode == "Raid" or Gamemode == "World Boss" then
-                if Misc.AutoVoteStartRaidBoss and Client.HUD.StartRaid.Visible then
-                    Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
-                end
-                if Misc.AutoVoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
-                    Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
-                end
+            if Gamemode == "Raid" or Gamemode == "World Boss" and Misc.AutoVoteStartRaidBoss and Client.HUD.StartRaid.Visible then
+                Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
+            end
+            if Misc.AutoVoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
+                Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
             end
         end
         
         if Gamemode == "Survival" then
-            if Misc.AutoEscape and Entries and Client.RootPart and not Client.HUD.EndScreen.Visible then
+            if Misc.AutoEscape and Entries and Client.RootPart and not workspace:FindFirstChild("GameFinished") then
                 for _, Entry in Entries:GetChildren() do
                     local ProximityPrompt = Entry:FindFirstChildWhichIsA("ProximityPrompt", true)
                     if not ProximityPrompt then continue end
@@ -403,8 +418,9 @@ end)
 
 Drops.ChildAdded:Connect(function(Child)
     if not (Misc.AutoPickUpLoot) then return end
-    for _, Drop in Child.Parent:GetChildren() do
-        if not Child:FindFirstChild("Pickup") then continue end
-        Drop.Pickup:FireServer()
+    for _, Drop in Drops:GetChildren() do
+        local Pickup = Drop:FindFirstChild("Pickup", true)
+        if not Pickup then continue end
+        Pickup:FireServer()
     end
 end)
