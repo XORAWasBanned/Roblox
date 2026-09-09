@@ -19,7 +19,11 @@ local FFlags, Updated, Missing = {
     RenderLocalLightFadeInMs = "0",
     DebugGraphicsPreferD3D11 = "true",
     DisableDPIScale = "false",
-    
+    DebugTextureManagerSkipMips = "-1",
+    TextureCompositorLowResFactor = "1",
+    DebugForceMSAASamples = "0",
+    DebugGraphicsPreferVulkan = "true",
+
     --// Assets / Preloading / Terrain
     ContentProviderPreloadHangTelemetryHundredthsPercentage = "0",
     ContentProviderPreloadHangTelemetry = "false",
@@ -39,7 +43,12 @@ local FFlags, Updated, Missing = {
     CSGLevelOfDetailSwitchingDistanceL34 = "0",
     VertexSmoothingGroupTolerance = "0",
     HACDPointSampleDistApartTenths = "2147483647",
-    
+    CSGLevelOfDetailSwitchingDistance = "0",
+    CSGLevelOfDetailSwitchingDistanceL12 = "0",
+    CSGv2LodsToGenerate = "0",
+    DebugPauseVoxelizer = "true",
+    DebugRestrictGCDistance = "1",
+
     --// Character / Animation / Physics
     SimAnimationConstraintResponsiveness = "2147483647",
     GroundControllerBalancingResponsiveness = "2147483647",
@@ -47,12 +56,17 @@ local FFlags, Updated, Missing = {
     UserHideCharacterParticlesInFirstPerson = "true",
     AnimationLodFacsDistanceMin = "0",
     AnimationLodFacsVisibilityDenominator = "0",
-    
+
+    --// FPS / Scheduler
+    TaskSchedulerTargetFps = "2147483647",
+    TaskSchedulerLimitTargetFpsTo2402 = "false",
+    GameBasicSettingsFramerateCap5 = "false",
+
     --// Data Sending
-    DataSenderRate = "16777216",
+    DataSenderRate = "8388608",
     DataSenderMaxBandwidthBps = "2147483647",
     DataSenderMaxJoinBandwidthBps = "2147483647",
-    
+
     --// Replication / Physics Networking
     S2PhysicsSenderRate = "2147483647",
     PhysicsSenderMaxBandwidthBps = "2147483647",
@@ -62,27 +76,27 @@ local FFlags, Updated, Missing = {
     MegaReplicatorNumParallelTasks = "2147483647",
     MegaReplicatorNetworkQualityProcessorUnit = "2147483647",
     PhysicsReceiveNumParallelTasks = "2147483647",
-    
+
     --// Packets / RakNet
     MaxDataPacketPerSend = "2147483647",
     ClientPacketMaxDelayMs = "1",
     ClientPacketMaxFrameMicroseconds = "2147483647",
-    ClientPacketHealthyAllocationPercent = "20",
+    ClientPacketHealthyAllocationPercent = "2147483647",
     ClientPacketExcessMicroseconds = "2147483647",
     CodecMaxIncomingPackets = "2147483647",
     CodecMaxOutgoingFrames = "2147483647",
     RakNetPingFrequencyMillisecond = "2147483647",
-    RakNetResendBufferArrayLength = "64",
+    RakNetResendBufferArrayLength = "2147483647",
     RakNetResendRttMultiple = "1",
     RakNetUseSlidingWindow2_startUpdateMs = "1",
     RakNetUseSlidingWindow2_startInitSpeed = "2147483647",
     RakNetUseSlidingWindow2_startFactor = "2147483647",
-    
+
     --// Input / Camera
     UserCameraInputRefactor3 = "true",
     UserCameraInputDt = "true",
     UserUpdateInputConnections = "true",
-    
+
     --// UI / Audio / Services / Telemetry
     AdServiceEnabled = "false",
     V1MenuLanguageSelectionFeaturePerMillageRollout = "0",
