@@ -39,6 +39,7 @@ getgenv().Atomizer = {
     },
     Misc = {
         AutoExecuteOnTeleport = true,
+        BoostPerformance = true,
         AutoReplay = true,
         AutoEscape = true,
         AutoOpenGates = true,
@@ -55,6 +56,7 @@ local Misc = Atomizer.Misc
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 if Misc.AutoExecuteOnTeleport then queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true)) end
+if Misc.BoostPerformance then loadstring(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Universal%20/Performance%20Booster.luau", true))() end
 
 local Services = setmetatable({}, {
     __index = function(Self, Name)
@@ -110,7 +112,7 @@ local InitClient = function()
     Client.Guis, Client.Character = Client.Player:FindFirstChildOfClass("PlayerGui"), Client.Player.Character
     Client.Humanoid, Client.Head = Client.Character and Client.Character:FindFirstChildOfClass("Humanoid"), Client.Character and Client.Character:FindFirstChild("Head")
     Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
-    Client.Data, Client.HUD = Client.Player:WaitForChild("Data"), Client.Guis:WaitForChild("HUD")
+    Client.Data, Client.HUD = Client.Player:WaitForChild("Data"), Client.Guis:FindFirstChild("HUD")
     
     Client.Get = function(Name)
         for _, Character in ipairs(Client.Characters) do
@@ -122,13 +124,13 @@ local InitClient = function()
     end
     
     local function GetCharactersAndGadgets()
-        local CharactersMastery = Modules.Utils.Decode(Client.Data:WaitForChild("AbilityMastery").Value)
-        for Slot, Character in Modules.Utils.Decode(Client.Data:WaitForChild("AbilitySlots").Value) do
+        local CharactersMastery = Modules.Utils.Decode(Client.Data:FindFirstChild("AbilityMastery").Value)
+        for Slot, Character in Modules.Utils.Decode(Client.Data:FindFirstChild("AbilitySlots").Value) do
             local CharacterMastery = CharactersMastery[Character.Name] or {}
             Character.Slot, Character.Mastery, Character.Upgrades = Slot, {Level = CharacterMastery.Level or 0, Exp = CharacterMastery.EXP or 0}, CharactersMastery.Upgrades or {}
             Client.Characters[tonumber(string.match(Slot, "%d+"))] = Character
         end
-        for Slot, Gadget in Modules.Utils.Decode(Client.Data:WaitForChild("GadgetSlots").Value) do
+        for Slot, Gadget in Modules.Utils.Decode(Client.Data:FindFirstChild("GadgetSlots").Value) do
             local Data = Modules.ItemsData.Gadgets[Gadget.Name] or {}
             Gadget.Slot, Gadget.MaxMeter = Slot, Data.GadgetMeter or math.huge
             Client.Gadgets[tonumber(string.match(Slot, "%d+"))] = Gadget 
@@ -428,3 +430,5 @@ Drops.ChildAdded:Connect(function(Child)
         Pickup:FireServer()
     end
 end)
+
+setfflag("DataSenderRate", 240)
