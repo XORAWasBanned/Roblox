@@ -430,5 +430,3 @@ Drops.ChildAdded:Connect(function(Child)
         Pickup:FireServer()
     end
 end)
-
-setfflag("DataSenderRate", 240)
