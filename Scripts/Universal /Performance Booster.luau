@@ -33,9 +33,6 @@ local FFlags, Updated, Missing = {
     AssetPreloadingIXP = "true",
     AssetPreloadingUrlVersionEnabled2 = "true",
     PreloadTextureItemsOption4 = "true",
-    TeleportClientAssetPreloadingEnabled9 = "true",
-    TeleportClientAssetPreloadingDoingExperiment = "true",
-    TeleportPreloadingMetrics5 = "true",
     LuaAppGamesPagePreloadingDisabled = "false",
     TerrainMaterialTable2022 = "",
     TerrainArraySliceSize = "0",
@@ -63,7 +60,7 @@ local FFlags, Updated, Missing = {
     GameBasicSettingsFramerateCap5 = "false",
 
     --// Data Sending
-    DataSenderRate = "8388608",
+    DataSenderRate = "16777216",
     DataSenderMaxBandwidthBps = "2147483647",
     DataSenderMaxJoinBandwidthBps = "2147483647",
 
@@ -81,12 +78,12 @@ local FFlags, Updated, Missing = {
     MaxDataPacketPerSend = "2147483647",
     ClientPacketMaxDelayMs = "1",
     ClientPacketMaxFrameMicroseconds = "2147483647",
-    ClientPacketHealthyAllocationPercent = "2147483647",
+    ClientPacketHealthyAllocationPercent = "20",
     ClientPacketExcessMicroseconds = "2147483647",
     CodecMaxIncomingPackets = "2147483647",
     CodecMaxOutgoingFrames = "2147483647",
     RakNetPingFrequencyMillisecond = "2147483647",
-    RakNetResendBufferArrayLength = "2147483647",
+    RakNetResendBufferArrayLength = "64",
     RakNetResendRttMultiple = "1",
     RakNetUseSlidingWindow2_startUpdateMs = "1",
     RakNetUseSlidingWindow2_startInitSpeed = "2147483647",
