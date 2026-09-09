@@ -96,24 +96,26 @@ local FFlags, Updated, Missing = {
     DisableFeedbackSoothsayerCheck = "false",
 }, {}, {}
 
-while true do
-    for Name, Value in FFlags do
-        local CurrentValue, LastValue = getfflag(Name), Updated[Name]
-        if LastValue and CurrentValue ~= LastValue then
-            warn("Roblox Changed FFlag:",  Name, "| Expected:", LastValue, "| Current:", CurrentValue)
+task.spawn(function()
+    while true do
+        for Name, Value in FFlags do
+            local CurrentValue, LastValue = getfflag(Name), Updated[Name]
+            if LastValue and CurrentValue ~= LastValue then
+                warn("Roblox Changed FFlag:",  Name, "| Expected:", LastValue, "| Current:", CurrentValue)
+            end
+            
+            local Success, Result = pcall(setfflag, Name, Value)
+            if not Success then
+                Result = typeof(Result) == "string" and Result:lower() or Result
+                if typeof(Result) ~= "string" or Result ~= "cannot set invalid fflag" then warn("Unknown Error ->", tostring(Result)) continue end
+                if table.find(Missing, Name) then continue end
+                table.insert(Missing, Name)
+                warn("Missing FFlag:", Name)
+                continue
+            end
+            
+            Updated[Name] = Value
         end
-        
-        local Success, Result = pcall(setfflag, Name, Value)
-        if not Success then
-            Result = typeof(Result) == "string" and Result:lower() or Result
-            if typeof(Result) ~= "string" or Result ~= "cannot set invalid fflag" then warn("Unknown Error ->", tostring(Result)) continue end
-            if table.find(Missing, Name) then continue end
-            table.insert(Missing, Name)
-            warn("Missing FFlag:", Name)
-            continue
-        end
-        
-        Updated[Name] = Value
+        task.wait(1)
     end
-    task.wait(1)
-end
+end)
