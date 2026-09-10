@@ -73,7 +73,11 @@ local ModulesFolder, RemotesFolder, RequestsFolder = Assets:FindFirstChild("Modu
 local Drops, Enemies, MatchConfig = workspace:FindFirstChild("Thrown"), workspace:FindFirstChild("Zombies"), workspace:FindFirstChild("MatchConfig")
 local Modules, Remotes = {}, { Events = {}, Functions = {} }
 
+
+
 --// Functions
+
+
 
 local InitModules = function(WantedModules)
     for _, Module in ModulesFolder:QueryDescendants("ModuleScript") do
@@ -163,8 +167,9 @@ local InitClient = function()
         for _, Connection in getconnections(Client.Player.Idled) do Connection:Disconnect() end
         Connections.ClientIdled = Client.Player.Idled:Connect(function()
             VirtualUser:CaptureController()
-            VirtualUser:ClickButton1(Vector2.zero)
-            VirtualUser:ClickButton2(Vector2.zero)
+            VirtualUser:ClickButton1(Vector2.new())
+            VirtualUser:ClickButton2(Vector2.new())
+            Modules.Utils.Notify("Stop You From Disconnecting", "White", 10)
         end)
     end; InitAntiDisconnect()
     
@@ -420,6 +425,8 @@ local InitMisc = function()
     end
 end; InitMisc()
 
+
+
 --// Connections
 
 
@@ -438,3 +445,5 @@ Connections.DropAdded = Drops.ChildAdded:Connect(function(Child)
         Pickup:FireServer()
     end
 end)
+
+Modules.Utils.Notify("Injected Script Successfully", "Green", 10)
