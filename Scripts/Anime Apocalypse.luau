@@ -151,26 +151,32 @@ local InitClient = function()
         if IsCharacters then Client[Slots].Equipped = EquippedList end
     end
     
-    local function Died()
+    local function InitOnDeath()
         local function OnDeath()
             Client.Character, Client.Humanoid, Client.RootPart, Client.Head = nil, nil, nil, nil
         end
-        Connections["ClientCharacterRemoving"] = Client.Player.CharacterRemoving:Once(OnDeath)
-    end; Died()
+        Connections.ClientCharacterRemoving = Client.Player.CharacterRemoving:Once(OnDeath)
+    end; InitOnDeath()
     
-    Connections["ClientCharacterAdded"] = Client.Player.CharacterAdded:Connect(function(Character)
+    local function InitAntiDisconnect()
+        local VirtualUser = Services.VirtualUser
+        for _, Connection in getconnections(Client.Player.Idled) do Connection:Disconnect() end
+        Connections.ClientIdled = Client.Player.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton1(Vector2.zero)
+            VirtualUser:ClickButton2(Vector2.zero)
+        end)
+    end; InitAntiDisconnect()
+    
+    Connections.ClientCharacterAdded = Client.Player.CharacterAdded:Connect(function(Character)
         Client.Character = Character
         while not (Client.Humanoid and Client.RootPart and Client.Head) do
             Client.Humanoid, Client.Head = Character:FindFirstChildOfClass("Humanoid"), Character:FindFirstChild("Head")
             Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
             task.wait()
         end
-        Died()
+        InitOnDeath()
     end)
-    
-    for _, Connection in getconnections(Client.Player.Idled) do
-        Connection:Disconnect()
-    end
     
     RunIn.Heartbeat.Client = function()
         GetCharactersAndGadgets() GetEquipped("Characters") GetEquipped("Gadgets")
@@ -416,13 +422,15 @@ end; InitMisc()
 
 --// Connections
 
-Connections["Heartbeat"] = Services.Run.Heartbeat:Connect(function()
+
+
+Connections.Heartbeat = Services.Run.Heartbeat:Connect(function()
     for Name, Function in RunIn.Heartbeat do
         task.spawn(Function)
     end
 end)
 
-Drops.ChildAdded:Connect(function(Child)
+Connections.DropAdded = Drops.ChildAdded:Connect(function(Child)
     if not (Misc.AutoPickUpLoot) then return end
     for _, Drop in Drops:GetChildren() do
         local Pickup = Drop:FindFirstChild("Pickup", true)
