@@ -1,62 +1,81 @@
 getgenv().Atomizer = {
-    Combat = {
-        TeleportToEnemy = true,
-        LookAtEnemy = true,
-        AutoHit = {
-            Enabled = true,
-            M1s = {},
+    Match = {
+        Combat = {
+            TeleportToEnemy = true,
+            LookAtEnemy = true,
+            AutoHit = {
+                Enabled = true,
+                M1s = {},
+            },
+            AutoAbilities = {
+                Enabled = true,
+                [1] = {"King Of Greed", "Elf Mage"},
+                [2] = {"King Of Greed", "Elf Mage"},
+                [3] = {"King Of Greed", "Elf Mage"},
+                [4] = {"Soul Reaper"},
+            },
+            AutoGadgets = {
+                Enabled = true,
+                Gadgets = {},
+            },
         },
-        AutoAbilities = {
-            Enabled = true,
-            [1] = {"King Of Greed", "Elf Mage"},
-            [2] = {"King Of Greed", "Elf Mage"},
-            [3] = {"King Of Greed", "Elf Mage"},
-            [4] = {"Soul Reaper"},
-        },
-        AutoGadgets = {
-            Enabled = true,
-            Gadgets = {},
-        },
-    },
-    AutoRoll = {
-        Character = {
-            Enabled = false,
-            RollFor = "",
-            RollSlot = 4,
-            UseLuckySpin = false,
-        },
-        Gadget = {
-            Enabled = false,
-            RollFor = "",
-            RollSlot = 4,
-            UseLuckySpin = true,
-        },
-        Trait = {
-            Enabled = false,
-            RollFor = "Reaper",
-            RollSlot = 4,
-        },
-    },
-    Misc = {
-        AutoExecuteOnTeleport = true,
-        BoostPerformance = true,
+        
         AutoReplay = true,
         AutoEscape = true,
         AutoOpenGates = true,
-        AutoVoteStartRaidBoss = true,
-        AutoVoteSkipBossCutscene = true,
-        AutoRedeemCodes = true,
         AutoPickUpLoot = true,
+        
+        AutoVote = {
+            StartRaidBoss = true,
+            SkipBossCutscene = true,
+            StartInfinity = true,
+            SkipInfinityWave = true,
+        },
+        
+        AutoPickCard = {
+            Enabled = true,
+            Pick = {
+                Wealth = true,
+                ReduceAbilityCooldown = false,
+                IncreaseDamage = false,
+                IncreseUltimateGain = false,
+                IncreseGadgetGain = false,
+                ExtraLife = false,
+                IncreaseWalkSpeed = false,
+            },
+        },
+    },
+    Lobby = {
+        AutoRedeemCodes = true,
+        AutoRoll = {
+            Character = {
+                Enabled = false,
+                RollFor = "",
+                RollSlot = 4,
+                UseLuckySpin = false,
+            },
+            Gadget = {
+                Enabled = false,
+                RollFor = "",
+                RollSlot = 4,
+                UseLuckySpin = true,
+            },
+            Trait = {
+                Enabled = false,
+                RollFor = "Reaper",
+                RollSlot = 4,
+            },
+        },
+    },
+    Misc = {
+        ExecuteOnTeleport = false,
+        BoostPerformance = true,
     },
 }
 
-local Combat = Atomizer.Combat
-local AutoRoll = Atomizer.AutoRoll
-local Misc = Atomizer.Misc
+local Lobby, Match, Misc = Atomizer.Lobby, Atomizer.Match, Atomizer.Misc
 
 if not game:IsLoaded() then game.Loaded:Wait() end
-if Misc.AutoExecuteOnTeleport then queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true)) end
-if Misc.BoostPerformance then loadstring(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Universal%20/Performance%20Booster.luau", true))() end
 
 local Services = setmetatable({}, {
     __index = function(Self, Name)
@@ -67,20 +86,31 @@ local Services = setmetatable({}, {
     end
 })
 
-local Client, Connections, RunIn, InLobby = {}, {}, {Heartbeat = {}}, workspace:GetAttribute("NoCooldowns")
+local Client, Connections, RunIn, InLobby, MatchData = {}, {}, {Heartbeat = {}}, workspace:GetAttribute("NoCooldowns"), {}
+local InMatch = not InLobby
 local Assets = Services.ReplicatedStorage:FindFirstChild("Assets")
-local ModulesFolder, RemotesFolder, RequestsFolder = Assets:FindFirstChild("Modules"), Assets:FindFirstChild("Remotes"), Assets:FindFirstChild("Requests")
-local Drops, Enemies, MatchConfig = workspace:FindFirstChild("Thrown"), workspace:FindFirstChild("Zombies"), workspace:FindFirstChild("MatchConfig")
+local Thrown, Enemies = workspace:FindFirstChild("Thrown"), workspace:FindFirstChild("Zombies")
 local Modules, Remotes = {}, { Events = {}, Functions = {} }
-
-
 
 --// Functions
 
 
 
+local WhileLoop = function(Function, Wait)
+    task.spawn(function()
+        while true do Function() task.wait(Wait) end
+    end)
+end
+
+local InitMatchData = function()
+    MatchData.Self = workspace:FindFirstChild("MatchConfig")
+    for _, Data in MatchData.Self:GetChildren() do
+        if Data.ClassName:find("Value") then MatchData[Data.Name] = Data.Value end 
+    end
+end; if InMatch then InitMatchData() end
+
 local InitModules = function(WantedModules)
-    for _, Module in ModulesFolder:QueryDescendants("ModuleScript") do
+    for _, Module in Assets:FindFirstChild("Modules"):QueryDescendants("ModuleScript") do
         if not table.find(WantedModules, Module.Name) or Module.Parent.Name == "BezierTween" and Module.Name == "Utils" then continue end
         task.spawn(function()
             local Success, RequiredModule = pcall(require, Module)
@@ -88,7 +118,6 @@ local InitModules = function(WantedModules)
         end)
     end
 end; InitModules({"ItemsData", "CombatData", "Utils", "ReplayPolicy", "CodeRewards"})
-
 
 local InitRemotes = function()
     local GetRemotes = function(Container) 
@@ -99,16 +128,8 @@ local InitRemotes = function()
                 Remotes.Functions[Remote.Name] = Remote
             end
         end
-    end; GetRemotes(RemotesFolder) GetRemotes(RequestsFolder)
+    end; GetRemotes(Assets:FindFirstChild("Remotes")) GetRemotes(Assets:FindFirstChild("Requests"))
 end; InitRemotes()
-
-local GetGamemode = function()
-    return MatchConfig.Gamemode.Value
-end
-
-local GetMap = function()
-    return MatchConfig.Map.Value
-end
 
 local InitClient = function()
     Client.Player, Client.Characters, Client.Gadgets = Services.Players.LocalPlayer, {}, {}
@@ -144,12 +165,12 @@ local InitClient = function()
     local function GetEquipped(Slots)
         local IsCharacters = Slots == "Characters"
         local EquippedList = IsCharacters and {}
-        for _, Slot in Client[Slots] do
-            if not Slot.Equipped then continue end
+        for _, SlotData in Client[Slots] do
+            if not SlotData.Equipped then continue end
             if IsCharacters then
-                table.insert(EquippedList, Slot)
+                table.insert(EquippedList, SlotData)
             else
-                Client[Slots].Equipped = Slot
+                Client[Slots].Equipped = SlotData
             end
         end
         if IsCharacters then Client[Slots].Equipped = EquippedList end
@@ -169,7 +190,14 @@ local InitClient = function()
             VirtualUser:CaptureController()
             VirtualUser:ClickButton1(Vector2.new())
             VirtualUser:ClickButton2(Vector2.new())
-            Modules.Utils.Notify("Stop You From Disconnecting", "White", 10)
+            Modules.Utils.Notify("Anti Disconnect: Prevented You From Getting Disconnect!", "White", 5)
+        end)
+        local Original; Original = hookfunction(task.wait, function(Duration)
+            if checkcaller() then return Original(Duration) end
+            local Traceback = debug.traceback()
+            if not Traceback:find("AFKTeleport") then return Original(Duration) end
+            Modules.Utils.Notify("Anti Disconnect: Disabled AFK World Teleportation Script!", "White", 5)
+            return coroutine.yield()
         end)
     end; InitAntiDisconnect()
     
@@ -183,247 +211,369 @@ local InitClient = function()
         InitOnDeath()
     end)
     
+    if InMatch then
+        Connections.LocalEffectEscaped = Connections.LocalEffectEscaped or Remotes.Events.LocalEffect.OnClientEvent:Connect(function(Name)
+            if Name == "Escaped" then Client.Escaped = true end
+        end)
+    end
+    
     RunIn.Heartbeat.Client = function()
         GetCharactersAndGadgets() GetEquipped("Characters") GetEquipped("Gadgets")
     end
 end; InitClient()
 
-local InitCombat = function()
-    local M1, AbilitiesCooldowns = {LastTime = 0, Cooldown = 0, Hit = 0}, {}
+local InitLobby = function()
+    if InMatch then return end
     
-    local GetTarget = function(EnemiesList)
-        local Target = {Distance = math.huge}
-        for _, Enemy in (EnemiesList or Enemies:GetChildren()) do
-            if Enemy:GetAttribute("Untargetable") or not Client.RootPart then continue end
-            local RootPart, Config = Enemy:FindFirstChild("HumanoidRootPart"), Enemy:FindFirstChild("Config")
-            local Health = Config and Config:FindFirstChild("Health")
-            local Distance = RootPart and (RootPart.Position - Client.RootPart.Position).Magnitude
-            if not (RootPart and Health and Health.Value > 0) then continue end
-            local IsBoss = Enemy:GetAttribute("RaidBoss")
-            if not (IsBoss and not Target.IsBoss or IsBoss == Target.IsBoss and Distance < Target.Distance) then continue end
-            Target = {Config = Config, Character = Enemy, RootPart = RootPart, CFrame = RootPart.CFrame, Distance = Distance, IsBoss = IsBoss}
-        end
-        return Target.RootPart and Target or nil
-    end
-    
-    local GetBestM1Character = function(MaxMaseryRequired)
-        local Best = {TotalDamage = -math.huge}
-        for _, Character in ipairs(Client.Characters) do
-            if MaxMaseryRequired and Character.Mastery.Level < 100 then continue end
-            local CombatData, TotalDamage = Modules.CombatData[Character.Name], 0
-            if CombatData then for _, Attack in CombatData do TotalDamage += Attack.Damage or 0 end end
-            if Best.TotalDamage >= TotalDamage then continue end
-            Best = {Character = Character, TotalDamage = TotalDamage}
-        end
-        return Best.Character
-    end
-    
-    local IsM1Ready = function()
-        local CurrentTime, AttackSpeed, HasteBoost = workspace:GetServerTimeNow(), Modules.Utils.GetTraitBuffs(Client.Player).AttackSpeedMulti or 1, Client.Character and Client.Character:FindFirstChild("HasteBoost")
-        if HasteBoost then AttackSpeed *= HasteBoost.Value end
-        return M1.Cooldown / AttackSpeed <= CurrentTime - M1.LastTime, CurrentTime, AttackSpeed
-    end
-    
-    local IsAbilityReady = function(Ability)
-        local Cooldown = AbilitiesCooldowns[Ability]
-        return not Cooldown or workspace:GetServerTimeNow() >= Cooldown
-    end
-    
-    local SetAbilityCooldown = function(Ability, Duration)
-        if not (Ability and Duration and Duration > 0) then return end
-        AbilitiesCooldowns[Ability] = workspace:GetServerTimeNow() + Duration
-    end
-    
-    local Fire = function(Name, Type, ...)
-        if Type == "M1" then
-            local Combat = Modules.CombatData[Name]
-            local Ready, CurrentTime, AttackSpeed = IsM1Ready()
-            if not (Ready and Combat) then return end
-            if CurrentTime - M1.LastTime > 1 then M1.Hit = 1 else M1.Hit = M1.Hit % 4 + 1 end
-            local AttackData = Combat["LightAttack" .. M1.Hit]
-            if not AttackData then return end
-            M1.Cooldown, M1.LastTime = AttackData.M1CD or 0.4, CurrentTime
-            Remotes.Events.Interact:FireServer("M1", Name, CurrentTime)
-        elseif Type == "Ability" then
-            local Ability, Character = select(1, ...), Client.Get(Name)
-            if not (Ability and Character and IsAbilityReady(Ability)) then return end
-            Remotes.Events.Interact:FireServer("Ability", Ability, Character.Slot, Name, "Began")
-        elseif Type == "Gadget" then
-            local Gadget, Meter = Client.Get(Name),  Client.Player:FindFirstChild("GadgetMeter")
-            if not (Gadget and Meter and Meter.Value >= Gadget.MaxMeter) then return end
-            Remotes.Events.Interact:FireServer("Gadget", Gadget.Slot, Name, "Began")
-        end
-    end
-    
-    Remotes.Events.UsedAbility.OnClientEvent:Connect(function(_, Duration, _, Slot)
-        if Slot then SetAbilityCooldown(Slot, Duration) end
-    end)
-    
-    RunIn.Heartbeat.Combat = function()
-        if not Client.RootPart then return end
-        local ShowEnemies = Enemies:FindFirstChild("ShowEnemies") or Instance.new("Highlight", Enemies)
-        ShowEnemies.Name = "ShowEnemies"
-        ShowEnemies.Enabled = false
-        pcall(function()
-            ShowEnemies.Parent = nil
-            ShowEnemies.Parent = Enemies
-        end)
+    local InitAutoRoll = function()
+        local Rolled, NotifiedAbout, LastRollTime, Rolling, RarityColors, Traits = {}, {}, {}, {}, {Rare = "Blue", Legendary = "Gold", Epic = "Purple", Mythic = "Red", Supreme = "Lime", Majestic = "Red"}, {"Power", "Swift", "Timer", "Fortune", "Zombie", "Hunter", "Reaper", "Flash", "Shinigami"}
         
-        local Enemy = GetTarget()
-        if not Enemy then return end
-        
-        if Combat.TeleportToEnemy then
-            local TargetPosition = Enemy.CFrame.p - Enemy.CFrame.LookVector * 10
-            Client.RootPart.Velocity, Client.RootPart.CFrame = vector.zero, CFrame.lookAt(TargetPosition, Enemy.CFrame.p)
-        elseif Combat.LookAtEnemy then
-            Client.RootPart.CFrame = CFrame.lookAt(Client.RootPart.Position, vector.create(Enemy.CFrame.p.X, Client.RootPart.Position.Y, Enemy.CFrame.p.Z))
-        end
-        
-        if Combat.AutoHit.Enabled then
-            local M1s = Combat.AutoHit.M1s
-            local Character = #M1s > 0 and M1s[math.random(1, #M1s)] or GetBestM1Character()
-            if Character then Fire(Character.Name, "M1") end
-        end
-        
-        if Combat.AutoAbilities.Enabled then
-            for Ability, Characters in ipairs(Combat.AutoAbilities) do
-                local Character = #Characters > 0 and Client.Get(Characters[math.random(1, #Characters)]) or GetBestM1Character(Ability == 4)
-                if Character then Fire(Character.Name, "Ability", Ability) end
+        local RollFor = function(Type)
+            local Settings = Lobby.AutoRoll[Type]
+            if not (Settings.Enabled and not Rolled[Type] and not Rolling[Type] and tick() - (LastRollTime[Type] or 0) >= 0.05) then return end
+            
+            if Type == "Trait" then
+                local RollingFor, RollingSlot, RerollItem = Settings.RollFor, Client.Characters[Settings.RollSlot], Modules.Utils.GetItem(Client.Player, "Trait Reroll")
+                local HasRerolls = RerollItem and (RerollItem.Amount or 0) > 0
+                local ShouldRoll = table.find(Traits, RollingFor) and RollingSlot and RollingSlot.Trait ~= RollingFor and HasRerolls
+                
+                if ShouldRoll then
+                    NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
+                    local Trait = Remotes.Functions.FuncInteract:InvokeServer("RollTrait", RollingSlot.Slot)
+                    Rolling[Type] = nil
+                    if Trait == RollingFor then
+                        Rolled[Type] = true
+                        Modules.Utils.Notify("Got "..Trait.." Trait!", "Gold", 5)
+                        task.delay(1, function() Rolled[Type] = nil end)
+                    end
+                else
+                    local Reason
+                    if not table.find(Traits, RollingFor) then Reason = "Rolling Trait Does Not Exist: "..tostring(RollingFor)
+                    elseif not RollingSlot then Reason = "Invaild Trait Rolling Slot: "..tostring(Settings.RollSlot)
+                    elseif not HasRerolls then Reason = "No Trait Rerolls Left" end
+                    
+                    if Reason and Reason ~= NotifiedAbout[Type] then
+                        NotifiedAbout[Type] = Reason
+                        Modules.Utils.Notify(Reason, "Red")
+                    end
+                end
+                return
             end
-        end
-        
-        if Combat.AutoGadgets.Enabled then
-            local Gadgets = Combat.AutoGadgets.Gadgets
-            local Gadget = #Gadgets > 0 and Gadgets[math.random(1, #Gadgets)] or Client.Gadgets.Equipped and Client.Gadgets.Equipped.Name
-            if Gadget then Fire(Gadget, "Gadget") end
-        end
-    end
-end; if not InLobby then InitCombat() end
-
-local InitAutoRoll = function()
-    local Rolled, NotifiedAbout, LastRollTime, Rolling, RarityColors, Traits = {}, {}, {}, {}, {Rare = "Blue", Legendary = "Gold", Epic = "Purple", Mythic = "Red", Supreme = "Lime", Majestic = "Red"}, {"Power", "Swift", "Timer", "Fortune", "Zombie", "Hunter", "Reaper", "Flash", "Shinigami"}
-    
-    local RollFor = function(Type)
-        local Settings = AutoRoll[Type]
-        if not (Settings.Enabled and not Rolled[Type] and not Rolling[Type] and tick() - (LastRollTime[Type] or 0) >= 0.05) then return end
-        
-        if Type == "Trait" then
-            local RollingFor, RollingSlot = Settings.RollFor, Client.Characters[Settings.RollSlot]
-            local RerollItem, ShouldRoll = Modules.Utils.GetItem(Client.Player, "Trait Reroll"), nil
-            local HasRerolls = RerollItem and (RerollItem.Amount or 0) > 0
-            ShouldRoll = table.find(Traits, RollingFor) and RollingSlot and RollingSlot.Trait ~= RollingFor and HasRerolls
+            
+            local IsCharacter = Type == "Character"
+            local Slots, ItemsData, LuckySpins, NormalSpins, RollingFor, UseLuckySpin = IsCharacter and Client.Characters or Client.Gadgets, IsCharacter and Modules.ItemsData.Abilities or Modules.ItemsData.Gadgets, IsCharacter and Client.Data.LuckyAbilitySpins or Client.Data.LuckyGadgetSpins, IsCharacter and Client.Data.NormalAbilitySpins or Client.Data.NormalGadgetSpins, Settings.RollFor, Settings.UseLuckySpin
+            local RollingSlot = Slots[Settings.RollSlot]
+            local ShouldRoll = ItemsData[RollingFor] and RollingSlot and not RollingSlot.Locked and RollingSlot.Name ~= RollingFor and (UseLuckySpin and LuckySpins.Value > 0 or not UseLuckySpin and (NormalSpins.Value > 0 or Client.Data.Coins.Value >= 3000))
             
             if ShouldRoll then
                 NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
-                local Trait = Remotes.Functions.FuncInteract:InvokeServer("RollTrait", RollingSlot.Slot)
+                local Character, Rarity = Remotes.Functions.FuncInteract:InvokeServer(IsCharacter and "RollAbility" or "RollGadget", "Slot"..Settings.RollSlot, UseLuckySpin and "Lucky" or "Normal")
                 Rolling[Type] = nil
-                if Trait == RollingFor then
+                if Character == RollingFor then
                     Rolled[Type] = true
-                    Modules.Utils.Notify("Got "..Trait.." Trait!", "Gold", 5)
+                    Modules.Utils.Notify("Got "..Character.." ("..Rarity..")!", RarityColors[Rarity] or "White", 5)
                     task.delay(1, function() Rolled[Type] = nil end)
                 end
             else
                 local Reason
-                if not table.find(Traits, RollingFor) then Reason = "Rolling Trait Does Not Exist: "..tostring(RollingFor)
-                elseif not RollingSlot then Reason = "Invaild Trait Rolling Slot: "..tostring(Settings.RollSlot)
-                elseif not HasRerolls then Reason = "No Trait Rerolls Left" end
+                if not ItemsData[RollingFor] then Reason = "Rolling "..Type.." Does Not Exist: "..tostring(RollingFor)
+                elseif not RollingSlot then Reason = "Invaild Rolling Slot:"..tostring(Settings.RollSlot)
+                elseif RollingSlot.Locked then Reason = "Slot "..Settings.RollSlot.." Is Locked"
+                elseif UseLuckySpin and LuckySpins.Value <= 0 then Reason = "No Lucky Spins Left"
+                elseif not UseLuckySpin and NormalSpins.Value <= 0 and Client.Data.Coins.Value < 3000 then Reason = "Cannot Afford Normal Spin" end
                 
                 if Reason and Reason ~= NotifiedAbout[Type] then
                     NotifiedAbout[Type] = Reason
                     Modules.Utils.Notify(Reason, "Red")
                 end
             end
+        end
+        
+        RunIn.Heartbeat.AutoRoll = function()
+            RollFor("Character") RollFor("Gadget") RollFor("Trait")
+        end
+    end InitAutoRoll()
+    
+    local HandleRedeemCodes = function()
+        if not (InLobby and Lobby.AutoRedeemCodes and Client.Data:FindFirstChild("Codes") and Modules.CodeRewards) then return end
+        local Redeemed = Modules.Utils.Decode(Client.Data.Codes.Value)
+        for Code, Data in Modules.CodeRewards do
+            if table.find(Redeemed, Code) or Data.Expired or Data.GroupRoleRequired or Data.GroupRankRequired then continue end
+            Modules.Utils.Notify("Redeemed Code: "..Code, "White", 30)
+            Remotes.Functions.FuncInteract:InvokeServer("UseCode", Code)
+        end
+    end WhileLoop(HandleRedeemCodes, 0.05)
+end InitLobby()
+
+local InitMatch = function()
+    if InLobby then return end
+    
+    local InitCombat = function()
+        local Enemy, M1, Abilities = nil, {LastTime = 0, Cooldown = 0, Hit = 0}, {OnCooldown = {}}
+        
+        local GetTarget = function(EnemiesList)
+            local Target = {Distance = math.huge}
+            for _, Enemy in (EnemiesList or Enemies:GetChildren()) do
+                if Enemy:GetAttribute("Untargetable") or not Client.RootPart then continue end
+                local RootPart, Config = Enemy:FindFirstChild("HumanoidRootPart"), Enemy:FindFirstChild("Config")
+                local Health = Config and Config:FindFirstChild("Health")
+                local Distance = RootPart and (RootPart.Position - Client.RootPart.Position).Magnitude
+                if not (RootPart and Health and Health.Value > 0) then continue end
+                local IsBoss = Enemy:GetAttribute("RaidBoss")
+                if not (IsBoss and not Target.IsBoss or IsBoss == Target.IsBoss and Distance < Target.Distance) then continue end
+                Target = {Config = Config, Character = Enemy, RootPart = RootPart, CFrame = RootPart.CFrame, Distance = Distance, IsBoss = IsBoss}
+            end
+            return Target.RootPart and Target or nil
+        end
+        
+        local GetBestM1Character = function(MaxMaseryRequired)
+            local Best = {TotalDamage = -math.huge}
+            for _, Character in ipairs(Client.Characters) do
+                if MaxMaseryRequired and Character.Mastery.Level < 100 then continue end
+                local CombatData, TotalDamage = Modules.CombatData[Character.Name], 0
+                if CombatData then for _, Attack in CombatData do TotalDamage += Attack.Damage or 0 end end
+                if Best.TotalDamage >= TotalDamage then continue end
+                Best = {Character = Character, TotalDamage = TotalDamage}
+            end
+            return Best.Character
+        end
+        
+        local IsReady = function(Type, ...)
+            if Type == "M1" then
+                local CurrentTime, AttackSpeed, HasteBoost = workspace:GetServerTimeNow(), Modules.Utils.GetTraitBuffs(Client.Player).AttackSpeedMulti or 1, Client.Character and Client.Character:FindFirstChild("HasteBoost")
+                if HasteBoost then AttackSpeed *= HasteBoost.Value end
+                return M1.Cooldown / AttackSpeed <= CurrentTime - M1.LastTime, CurrentTime, AttackSpeed
+            elseif Type == "Ability" then
+                local CharacterSlot, AbilityNumber = ...
+                return Abilities.OnCooldown[CharacterSlot.."_"..AbilityNumber] == nil
+            end
+        end
+        
+        local Fire = function(Name, Type, AbilityNumber)
+            if Type == "M1" then
+                local Combat = Modules.CombatData[Name]
+                local Ready, CurrentTime, AttackSpeed = IsReady("M1")
+                if not (Ready and Combat) then return end
+                if CurrentTime - M1.LastTime > 1 then M1.Hit = 1 else M1.Hit = M1.Hit % 4 + 1 end
+                local AttackData = Combat["LightAttack" .. M1.Hit]
+                if not AttackData then return end
+                M1.Cooldown, M1.LastTime = AttackData.M1CD or 0.4, CurrentTime
+                Remotes.Events.Interact:FireServer("M1", Name, CurrentTime)
+            elseif Type == "Ability" and AbilityNumber then
+                local Character = Client.Get(Name)
+                if not (Character and IsReady("Ability", Character.Slot, AbilityNumber)) then return end
+                local Equipped = Remotes.Functions.FuncInteract:InvokeServer("EquipAbility", Character.Slot)
+                if Equipped then Remotes.Events.Interact:FireServer("Ability", AbilityNumber, Character.Slot, Character.Name, "Began") end
+            elseif Type == "Gadget" then
+                local Gadget, Meter = Client.Get(Name), Client.Player:FindFirstChild("GadgetMeter")
+                if not (Gadget and Meter and Meter.Value >= Gadget.MaxMeter) then return end
+                Remotes.Events.Interact:FireServer("Gadget", Gadget.Slot, Name, "Began")
+            end
+        end
+        
+        Connections.UsedAbilityEvent = Remotes.Events.UsedAbility.OnClientEvent:Connect(function(_, AbilityDuration, CharacterSlot, AbilityNumber)
+            if not (CharacterSlot and AbilityNumber and AbilityDuration) then return end
+            CharacterSlot = CharacterSlot:find("Slot") and CharacterSlot or Client.Get(CharacterSlot).Slot
+            local Key = CharacterSlot.."_"..AbilityNumber
+            Abilities.OnCooldown[Key] = true
+            task.wait(AbilityDuration)
+            Abilities.OnCooldown[Key] = nil
+        end)
+        
+        RunIn.Heartbeat.Combat = function()
+            if not Client.RootPart then return end
+            local Highlight = Enemies:FindFirstChild("Highlight") or Instance.new("Highlight", Enemies)
+            
+            Enemy = GetTarget()
+            if not Enemy then return end
+            
+            if Match.Combat.TeleportToEnemy then
+                local TargetPosition = Enemy.CFrame.p - Enemy.CFrame.LookVector * 15
+                Client.RootPart.Velocity, Client.RootPart.CFrame = vector.zero, CFrame.lookAt(TargetPosition, Enemy.CFrame.p)
+            elseif Match.Combat.LookAtEnemy then
+                Client.RootPart.CFrame = CFrame.lookAt(Client.RootPart.Position, vector.create(Enemy.CFrame.p.X, Client.RootPart.Position.Y, Enemy.CFrame.p.Z))
+            end
+            
+            if Match.Combat.AutoGadgets.Enabled then
+                local Gadgets = Match.Combat.AutoGadgets.Gadgets
+                local Gadget = #Gadgets > 0 and Gadgets[math.random(1, #Gadgets)] or Client.Gadgets.Equipped and Client.Gadgets.Equipped.Name
+                if Gadget then Fire(Gadget, "Gadget") end
+            end
+            
+            if Match.Combat.AutoHit.Enabled then 
+                local M1s = Match.Combat.AutoHit.M1s
+                local Character = #M1s > 0 and M1s[math.random(1, #M1s)] or GetBestM1Character()
+                if Character then Fire(Character.Name, "M1") end
+            end
+        end
+        
+        WhileLoop(function()
+            if not (Enemy and Match.Combat.AutoAbilities.Enabled) then return end
+            for Ability, Characters in ipairs(Match.Combat.AutoAbilities) do
+                Characters = #Characters > 0 and Characters or Client.Characters.Equipped
+                for _, Character in Characters do
+                    Fire(typeof(Character) == "string" and Character or Character.Name, "Ability", Ability)
+                end
+            end
+        end, 0.05)
+    end InitCombat()
+    
+    local HandleDrops = function()
+        if not (Match.AutoPickUpLoot) then
+            if Connections.DropAdded then
+                Connections.DropAdded:Disconnect()
+                Connections.DropAdded = nil
+            end
             return
         end
         
-        local IsCharacter = Type == "Character"
-        local Slots, ItemsData, LuckySpins, NormalSpins, RollingFor, UseLuckySpin = IsCharacter and Client.Characters or Client.Gadgets, IsCharacter and Modules.ItemsData.Abilities or Modules.ItemsData.Gadgets, IsCharacter and Client.Data.LuckyAbilitySpins or Client.Data.LuckyGadgetSpins, IsCharacter and Client.Data.NormalAbilitySpins or Client.Data.NormalGadgetSpins, Settings.RollFor, Settings.UseLuckySpin
-        local RollingSlot = Slots[Settings.RollSlot]
-        local ShouldRoll = ItemsData[RollingFor] and RollingSlot and not RollingSlot.Locked and RollingSlot.Name ~= RollingFor and (UseLuckySpin and LuckySpins.Value > 0 or not UseLuckySpin and (NormalSpins.Value > 0 or Client.Data.Coins.Value >= 3000))
-        
-        if ShouldRoll then
-            NotifiedAbout[Type], LastRollTime[Type], Rolling[Type] = nil, tick(), true
-            local Character, Rarity = Remotes.Functions.FuncInteract:InvokeServer(IsCharacter and "RollAbility" or "RollGadget", "Slot"..Settings.RollSlot, UseLuckySpin and "Lucky" or "Normal")
-            Rolling[Type] = nil
-            if Character == RollingFor then
-                Rolled[Type] = true
-                Modules.Utils.Notify("Got "..Character.." ("..Rarity..")!", RarityColors[Rarity] or "White", 5)
-                task.delay(1, function() Rolled[Type] = nil end)
-            end
-        else
-            local Reason
-            if not ItemsData[RollingFor] then Reason = "Rolling "..Type.." Does Not Exist: "..tostring(RollingFor)
-            elseif not RollingSlot then Reason = "Invaild Rolling Slot:"..tostring(Settings.RollSlot)
-            elseif RollingSlot.Locked then Reason = "Slot "..Settings.RollSlot.." Is Locked"
-            elseif UseLuckySpin and LuckySpins.Value <= 0 then Reason = "No Lucky Spins Left"
-            elseif not UseLuckySpin and NormalSpins.Value <= 0 and Client.Data.Coins.Value < 3000 then Reason = "Cannot Afford Normal Spin" end
-            
-            if Reason and Reason ~= NotifiedAbout[Type] then
-                NotifiedAbout[Type] = Reason
-                Modules.Utils.Notify(Reason, "Red")
+        if not Connections.DropAdded then
+            for _, Thrown in Thrown:GetChildren() do
+                local Pickup = Thrown:FindFirstChild("Pickup", true)
+                if not Pickup then continue end
+                Pickup:FireServer()
             end
         end
-    end
+        
+        Connections.DropAdded = Connections.DropAdded or Thrown.ChildAdded:Connect(function(Thrown)
+            local Pickup = Thrown:FindFirstChild("Pickup", true)
+            if not Pickup then return end
+            Pickup:FireServer()
+        end)
+    end WhileLoop(HandleDrops, 0.05)
     
-    RunIn.Heartbeat.AutoRoll = function()
-        RollFor("Character") RollFor("Gadget") RollFor("Trait")
-    end
-end; if InLobby then InitAutoRoll() end
+    local HandleCards = function()
+        if not (Match.AutoPickCard.Enabled and (MatchData.Gamemode == "Survival" or MatchData.Gamemode == "Infinite")) then
+            if Connections.DrawCardEvent then
+                Connections.DrawCardEvent:Disconnect()
+                Connections.DrawCardEvent = nil
+            end
+            Client.HUD.Main.Cards.Visible = true
+            return
+        end
+        if Connections.DrawCardEvent then return end
+        
+        local CardMap = {
+            Wealth = "wealth",
+            ReduceAbilityCooldown = "abilitycd",
+            IncreaseDamage = "damage",
+            IncreseUltimateGain = "ultgain",
+            IncreseGadgetGain = "gadgetcd",
+            ExtraLife = "extralife",
+            IncreaseWalkSpeed = "walkspeed",
+        }
+        
+        Connections.DrawCardEvent = Connections.DrawCardEvent or Remotes.Events.DrawCard.OnClientEvent:Connect(function(Action, Cards)
+            if not (Action == "Draw" and type(Cards) == "table") then return end
+            local SelectedCard
+            
+            for _, Card in Cards do
+                if SelectedCard then break end
+                for CardName, Pick in Match.AutoPickCard.Pick do
+                    if not Pick or SelectedCard then continue end
+                    local Name = Card.Name:lower():gsub("%W+", "")
+                    if CardMap[CardName] ~= Name then continue end
+                    SelectedCard = Card
+                    break
+                end
+            end
+            
+            SelectedCard = SelectedCard or Cards[math.random(1, #Cards)]
+            Remotes.Functions.FuncInteract:InvokeServer("DrawCard", SelectedCard.Name)
+            Client.HUD.Main.Cards.Visible = false
+            Modules.Utils.Notify("Selected Card: " .. Modules.ItemsData.Cards[SelectedCard.Name].CardName, "White", 3)
+        end)
+    end WhileLoop(HandleCards, 0.05)
+    
+    local HandleVotes = function()
+        if not (InMatch and Client.HUD) then return end
+        
+        local function ListenConnection(Key, Instance, Enabled, Property, Callback)
+            if Enabled and Instance then
+                Connections[Key] = Connections[Key] or Instance:GetPropertyChangedSignal(Property):Connect(function()
+                    Callback(Instance[Property])
+                end)
+                Callback(Instance[Property])
+            elseif Connections[Key] then
+                Connections[Key]:Disconnect()
+                Connections[Key] = nil
+            end
+        end
+        
+        ListenConnection("HUD", Client.HUD, true, "Enabled", function(IsEnabled)
+            if IsEnabled then return end
+            Client.HUD.Enabled = true
+        end)
+        
+        ListenConnection("VoteReplay", Client.HUD.EndScreen, Match.AutoReplay, "Visible", function(IsVisible)
+            if not (IsVisible and Modules.ReplayPolicy.CanPlayAgain(MatchData.Self)) then return end
+            Remotes.Events.Interact:FireServer("PlayAgain")
+        end)
+        
+        ListenConnection("VoteStartRaid", Client.HUD.StartRaid, Match.AutoVote.StartRaidBoss and (MatchData.Gamemode == "Raid" or MatchData.Gamemode == "World Boss"), "Visible", function(IsVisible)
+            if not IsVisible then return end
+            Remotes.Events.Interact:FireServer("VoteSkipRaid")
+        end)
+        
+        ListenConnection("VoteSkipCutscene", Client.HUD.BossSkipVote, Match.AutoVote.SkipBossCutscene, "Visible", function(IsVisible)
+            if not IsVisible then return end
+            Remotes.Events.Interact:FireServer("VoteSkipBossCutscene")
+        end)
+        
+        if MatchData.Gamemode == "Infinite" then
+            local Start, Skip = Client.HUD.Tabs.InfinitePanel.StartInfinite, Client.HUD.Tabs.InfinitePanel.SkipWave
+            
+            ListenConnection("VoteStartInfinite", Start, Match.AutoVote.StartInfinity, "Visible", function(IsVisible)
+                if not IsVisible then return end
+                Remotes.Events.Interact:FireServer("VoteSkipInfinite")
+            end)
+            
+            ListenConnection("VoteSkipWave", Skip, Match.AutoVote.SkipInfinityWave, "Visible", function(IsVisible)
+                if not IsVisible then return end
+                Remotes.Events.Interact:FireServer("VoteSkipWave")
+            end)
+        end
+    end WhileLoop(HandleVotes, 0.05)
+    
+    local InitSurvivalHandler = function()
+        WhileLoop(function()
+            if not (MatchData.Gamemode == "Survival" and Match.AutoEscape and Client.RootPart and not Client.Escaped) then return end
+            local Map = workspace:FindFirstChild("Map")
+            local Objective = Map and Map:FindFirstChild("Objective")
+            local Entries = Objective and Objective:FindFirstChild("Entries")
+            if not Entries then return end
+            
+            for _, Entry in Entries:GetChildren() do
+                local ProximityPrompt = Entry:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if not ProximityPrompt then continue end
+                Client.RootPart.CFrame = MatchData.Map == "Shibuya" and Entry:GetPivot() or MatchData.Map == "Prison" and Entry:FindFirstChild("Door"):GetPivot()
+                fireproximityprompt(ProximityPrompt)
+            end
+        end, 0.05)
+        
+        WhileLoop(function()
+            if not (MatchData.Gamemode == "Survival" and Match.AutoOpenGates) then return end
+            for _, Hitbox in Services.Collection:GetTagged("GateHitbox") do
+                local Gate = Hitbox.Parent
+                if not Gate or Gate:GetAttribute("Opened") then continue end
+                Remotes.Events.Interact:FireServer("GateHit", Gate)
+                Gate:SetAttribute("Opened", true)
+            end
+        end, 0.05)
+    end InitSurvivalHandler()
+end InitMatch()
 
 local InitMisc = function()
-    RunIn.Heartbeat.Misc = function()
-        if InLobby then
-            if Misc.AutoRedeemCodes and Client.Data:FindFirstChild("Codes") and Modules.CodeRewards then
-                local Redeemed = Modules.Utils.Decode(Client.Data.Codes.Value)
-                for Code, Data in Modules.CodeRewards do
-                    if table.find(Redeemed, Code) or Data.Expired or Data.GroupRoleRequired or Data.GroupRankRequired then continue end
-                    Modules.Utils.Notify("Redeemed Code: "..Code, "White")
-                    Remotes.Functions.FuncInteract:InvokeServer("UseCode", Code, 30)
-                end
-            end
-            return
-        end
-        
-        local Map, Gamemode = workspace:FindFirstChild("Map"), GetGamemode()
-        local Gates, Objective = Map and (Map:FindFirstChild("Gates") or Map:FindFirstChild("Door") or Map:FindFirstChild("Model")), Map and Map:FindFirstChild("Objective")
-        local Entries = Objective and Objective:FindFirstChild("Entries")
-        
-        if Client.HUD then
-            if not Client.HUD.Enabled then
-                Client.HUD.Enabled = true
-            end
-            if Misc.AutoReplay and Modules.ReplayPolicy and Modules.ReplayPolicy.CanPlayAgain(MatchConfig) and Client.HUD.EndScreen.Visible then
-                Remotes.Events.Interact:FireServer("PlayAgain")
-            end
-            if Gamemode == "Raid" or Gamemode == "World Boss" and Misc.AutoVoteStartRaidBoss and Client.HUD.StartRaid.Visible then
-                Remotes.Events.Interact:FireServer("VoteSkipRaid") Client.HUD.StartRaid.Visible = false
-            end
-            if Misc.AutoVoteSkipBossCutscene and Client.HUD.BossSkipVote.Visible then
-                Remotes.Events.Interact:FireServer("VoteSkipBossCutscene") Client.HUD.BossSkipVote.Visible = false
-            end
-        end
-        
-        if Gamemode == "Survival" then
-            if Misc.AutoEscape and Entries and Client.RootPart and not workspace:FindFirstChild("GameFinished") then
-                for _, Entry in Entries:GetChildren() do
-                    local ProximityPrompt = Entry:FindFirstChildWhichIsA("ProximityPrompt", true)
-                    if not ProximityPrompt then continue end
-                    local Map = GetMap()
-                    Client.RootPart.CFrame = Map == "Shibuya" and Entry:GetPivot() or Map == "Prison" and Entry:FindFirstChild("Door"):GetPivot()
-                    fireproximityprompt(ProximityPrompt)
-                end
-            end
-            
-            if Misc.AutoOpenGates and Gates then
-                for _, Gate in Gates:GetChildren() do
-                    if not Gate.Name:find("Gate") or Gate.Name:find("Opened") then continue end
-                    Remotes.Events.Interact:FireServer("GateHit", Gate)
-                    Gate.Name = Gate.Name.."Opened"
-                end
-            end
-        end
-    end
-end; InitMisc()
+    local HandleAutoExecute = function()
+        if not Misc.ExecuteOnTeleport then return end
+        queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
+    end HandleAutoExecute()
+    
+    local HandleBoostPerformance = function()
+        if not Misc.BoostPerformance then return end
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Universal%20/Performance%20Booster.luau", true))()
+    end HandleBoostPerformance()
+end InitMisc()
 
 
 
@@ -432,18 +582,10 @@ end; InitMisc()
 
 
 Connections.Heartbeat = Services.Run.Heartbeat:Connect(function()
+    Lobby, Match, Misc = Atomizer.Lobby, Atomizer.Match, Atomizer.Misc
     for Name, Function in RunIn.Heartbeat do
-        task.spawn(Function)
+        Function()
     end
 end)
 
-Connections.DropAdded = Drops.ChildAdded:Connect(function(Child)
-    if not (Misc.AutoPickUpLoot) then return end
-    for _, Drop in Drops:GetChildren() do
-        local Pickup = Drop:FindFirstChild("Pickup", true)
-        if not Pickup then continue end
-        Pickup:FireServer()
-    end
-end)
-
-Modules.Utils.Notify("Injected Script Successfully", "Green", 10)
+Modules.Utils.Notify("Injected Script Successfully", "Green", 5)
