@@ -509,7 +509,7 @@ local InitMatch = function()
                 Remotes.Events.Interact:FireServer("PlayAgain")
             end)
             
-            CheckVote("VoteStartRaid", Client.HUD.StartRaid, Match.AutoVote.StartRaidBoss and (MatchData.Gamemode == "Raid" or MatchData.Gamemode == "World Boss"), function()
+            CheckVote("VoteStartRaid", Client.HUD.StartRaid, Match.AutoVote.StartRaidBoss and (MatchData.Gamemode == "Raid" or MatchData.Gamemode == "World Boss" or MatchData.Gamemode == "Bizarre Pursuit"), function()
                 Remotes.Events.Interact:FireServer("VoteSkipRaid")
             end)
             
