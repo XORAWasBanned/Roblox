@@ -68,7 +68,7 @@ getgenv().Atomizer = {
         },
     },
     Misc = {
-        ExecuteOnTeleport = false,
+        ExecuteOnTeleport = true,
         BoostPerformance = true,
     },
 }
