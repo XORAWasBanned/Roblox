@@ -485,55 +485,50 @@ local InitMatch = function()
         end)
     end WhileLoop(HandleCards, 0.05)
     
-    local HandleVotes = function()
+    local InitVoteHandler = function()
         if not (InMatch and Client.HUD) then return end
-        
-        local function ListenConnection(Key, Instance, Enabled, Property, Callback)
-            if Enabled and Instance then
-                Connections[Key] = Connections[Key] or Instance:GetPropertyChangedSignal(Property):Connect(function()
-                    Callback(Instance[Property])
-                end)
-                Callback(Instance[Property])
-            elseif Connections[Key] then
-                Connections[Key]:Disconnect()
-                Connections[Key] = nil
+        local Voted = {}
+        local CheckVote = function(Key, Instance, Enabled, Callback)
+            if not (Enabled and Instance and Instance.Visible) then
+                Voted[Key] = nil
+                return
             end
+            if Voted[Key] then return end
+            Voted[Key] = true
+            Callback()
         end
         
-        ListenConnection("HUD", Client.HUD, true, "Enabled", function(IsEnabled)
-            if IsEnabled then return end
-            Client.HUD.Enabled = true
-        end)
-        
-        ListenConnection("VoteReplay", Client.HUD.EndScreen, Match.AutoReplay, "Visible", function(IsVisible)
-            if not (IsVisible and Modules.ReplayPolicy.CanPlayAgain(MatchData.Self)) then return end
-            Remotes.Events.Interact:FireServer("PlayAgain")
-        end)
-        
-        ListenConnection("VoteStartRaid", Client.HUD.StartRaid, Match.AutoVote.StartRaidBoss and (MatchData.Gamemode == "Raid" or MatchData.Gamemode == "World Boss"), "Visible", function(IsVisible)
-            if not IsVisible then return end
-            Remotes.Events.Interact:FireServer("VoteSkipRaid")
-        end)
-        
-        ListenConnection("VoteSkipCutscene", Client.HUD.BossSkipVote, Match.AutoVote.SkipBossCutscene, "Visible", function(IsVisible)
-            if not IsVisible then return end
-            Remotes.Events.Interact:FireServer("VoteSkipBossCutscene")
-        end)
-        
-        if MatchData.Gamemode == "Infinite" then
-            local Start, Skip = Client.HUD.Tabs.InfinitePanel.StartInfinite, Client.HUD.Tabs.InfinitePanel.SkipWave
+        local HandleVotes = function()
+            if not Client.HUD then return end
+            if not Client.HUD.Enabled then
+                Client.HUD.Enabled = true
+            end
             
-            ListenConnection("VoteStartInfinite", Start, Match.AutoVote.StartInfinity, "Visible", function(IsVisible)
-                if not IsVisible then return end
-                Remotes.Events.Interact:FireServer("VoteSkipInfinite")
+            CheckVote("VoteReplay", Client.HUD.EndScreen, Match.AutoReplay and Modules.ReplayPolicy.CanPlayAgain(MatchData.Self), function()
+                Remotes.Events.Interact:FireServer("PlayAgain")
             end)
             
-            ListenConnection("VoteSkipWave", Skip, Match.AutoVote.SkipInfinityWave, "Visible", function(IsVisible)
-                if not IsVisible then return end
-                Remotes.Events.Interact:FireServer("VoteSkipWave")
+            CheckVote("VoteStartRaid", Client.HUD.StartRaid, Match.AutoVote.StartRaidBoss and (MatchData.Gamemode == "Raid" or MatchData.Gamemode == "World Boss"), function()
+                Remotes.Events.Interact:FireServer("VoteSkipRaid")
             end)
-        end
-    end WhileLoop(HandleVotes, 0.05)
+            
+            CheckVote("VoteSkipCutscene", Client.HUD.BossSkipVote, Match.AutoVote.SkipBossCutscene, function()
+                Remotes.Events.Interact:FireServer("VoteSkipBossCutscene")
+            end)
+            
+            if MatchData.Gamemode == "Infinite" then
+                local Start, Skip = Client.HUD.Tabs.InfinitePanel.StartInfinite, Client.HUD.Tabs.InfinitePanel.SkipWave
+                
+                CheckVote("VoteStartInfinite", Start, Match.AutoVote.StartInfinity, function()
+                    Remotes.Events.Interact:FireServer("VoteSkipInfinite")
+                end)
+                
+                CheckVote("VoteSkipWave", Skip, Match.AutoVote.SkipInfinityWave, function()
+                    Remotes.Events.Interact:FireServer("VoteSkipWave")
+                end)
+            end
+        end WhileLoop(HandleVotes, 0.05)
+    end InitVoteHandler()
     
     local InitSurvivalHandler = function()
         WhileLoop(function()
