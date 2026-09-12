@@ -211,7 +211,7 @@ local InitClient = function()
         InitOnDeath()
     end)
     
-    if InMatch then
+    if InMatch and MatchData.Gamemode == "Survival" then
         Connections.LocalEffectEscaped = Connections.LocalEffectEscaped or Remotes.Events.LocalEffect.OnClientEvent:Connect(function(Name)
             if Name == "Escaped" then Client.Escaped = true end
         end)
@@ -302,7 +302,7 @@ local InitLobby = function()
             Modules.Utils.Notify("Redeemed Code: "..Code, "White", 30)
             Remotes.Functions.FuncInteract:InvokeServer("UseCode", Code)
         end
-    end WhileLoop(HandleRedeemCodes, 0.05)
+    end WhileLoop(HandleRedeemCodes, 0.1)
 end InitLobby()
 
 local InitMatch = function()
@@ -373,7 +373,7 @@ local InitMatch = function()
         
         Connections.UsedAbilityEvent = Remotes.Events.UsedAbility.OnClientEvent:Connect(function(_, AbilityDuration, CharacterSlot, AbilityNumber)
             if not (CharacterSlot and AbilityNumber and AbilityDuration) then return end
-            CharacterSlot = CharacterSlot:find("Slot") and CharacterSlot or Client.Get(CharacterSlot).Slot
+            CharacterSlot = CharacterSlot:find("Slot") and CharacterSlot or Client.Get(CharacterSlot) and Client.Get(CharacterSlot).Slot
             local Key = CharacterSlot.."_"..AbilityNumber
             Abilities.OnCooldown[Key] = true
             task.wait(AbilityDuration)
@@ -415,7 +415,7 @@ local InitMatch = function()
                     Fire(typeof(Character) == "string" and Character or Character.Name, "Ability", Ability)
                 end
             end
-        end, 0.05)
+        end, 0.1)
     end InitCombat()
     
     local HandleDrops = function()
@@ -440,7 +440,7 @@ local InitMatch = function()
             if not Pickup then return end
             Pickup:FireServer()
         end)
-    end WhileLoop(HandleDrops, 0.05)
+    end WhileLoop(HandleDrops, 1)
     
     local HandleCards = function()
         if not (Match.AutoPickCard.Enabled and (MatchData.Gamemode == "Survival" or MatchData.Gamemode == "Infinite")) then
@@ -478,12 +478,13 @@ local InitMatch = function()
                 end
             end
             
-            SelectedCard = SelectedCard or Cards[math.random(1, #Cards)]
+            SelectedCard = SelectedCard or Cards[math.random(1, #Cards or 1)]
+            if not SelectedCard then return end
             Remotes.Functions.FuncInteract:InvokeServer("DrawCard", SelectedCard.Name)
             Client.HUD.Main.Cards.Visible = false
             Modules.Utils.Notify("Selected Card: " .. Modules.ItemsData.Cards[SelectedCard.Name].CardName, "White", 3)
         end)
-    end WhileLoop(HandleCards, 0.05)
+    end WhileLoop(HandleCards, 1)
     
     local InitVoteHandler = function()
         if not (InMatch and Client.HUD) then return end
@@ -527,7 +528,7 @@ local InitMatch = function()
                     Remotes.Events.Interact:FireServer("VoteSkipWave")
                 end)
             end
-        end WhileLoop(HandleVotes, 0.05)
+        end WhileLoop(HandleVotes, 0.1)
     end InitVoteHandler()
     
     local InitSurvivalHandler = function()
@@ -544,7 +545,7 @@ local InitMatch = function()
                 Client.RootPart.CFrame = MatchData.Map == "Shibuya" and Entry:GetPivot() or MatchData.Map == "Prison" and Entry:FindFirstChild("Door"):GetPivot()
                 fireproximityprompt(ProximityPrompt)
             end
-        end, 0.05)
+        end, 0.1)
         
         WhileLoop(function()
             if not (MatchData.Gamemode == "Survival" and Match.AutoOpenGates) then return end
@@ -554,20 +555,32 @@ local InitMatch = function()
                 Remotes.Events.Interact:FireServer("GateHit", Gate)
                 Gate:SetAttribute("Opened", true)
             end
-        end, 0.05)
+        end, 0.1)
     end InitSurvivalHandler()
 end InitMatch()
 
 local InitMisc = function()
-    local HandleAutoExecute = function()
+    local InitAutoExecute = function()
         if not Misc.ExecuteOnTeleport then return end
         queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Anime%20Apocalypse.luau", true))
-    end HandleAutoExecute()
+    end InitAutoExecute()
     
-    local HandleBoostPerformance = function()
+    local InitBoostPerformance = function()
         if not Misc.BoostPerformance then return end
+        local Terrain = workspace.Terrain
+        local EmitterContainer = Terrain:FindFirstChild("EmittedPartsUsingPart_icle")
+        if EmitterContainer then EmitterContainer:Destroy() end
+        Connections["TerrainChildAdded"] = Terrain.ChildAdded:Connect(function(Child)
+            if Child.Name == "EmittedPartsUsingPart_icle" then Child:Destroy() end
+        end)
+        Connections["ThrownChildAdded"] = Thrown.ChildAdded:Connect(function(Child)
+            if not Child:FindFirstChild("Pickup", true) then Child:Destroy() end
+        end)
+        Connections["CameraChildAdded"] = workspace.CurrentCamera.ChildAdded:Connect(function(Child)
+            Child:Destroy()
+        end)
         loadstring(game:HttpGet("https://raw.githubusercontent.com/XORAWasBanned/Roblox/refs/heads/main/Scripts/Universal%20/Performance%20Booster.luau", true))()
-    end HandleBoostPerformance()
+    end InitBoostPerformance()
 end InitMisc()
 
 
