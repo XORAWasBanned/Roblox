@@ -9,7 +9,7 @@ getgenv().Atomizer = {
             },
             AutoAbilities = {
                 Enabled = true,
-                [1] = {"Joe Kid", "King Of Greed", "Elf Mage"},
+                [1] = {"King Of Greed", "Elf Mage"},
                 [2] = {"Joe Kid", "King Of Greed", "Elf Mage"},
                 [3] = {"Joe Kid", "King Of Greed", "Elf Mage"},
                 [4] = {"Soul Reaper", "Joe Kid"},
@@ -361,7 +361,7 @@ local InitMatch = function()
                 Remotes.Events.Interact:FireServer("M1", Name, CurrentTime)
             elseif Type == "Ability" and AbilityNumber then
                 local Character = Client.Get(Name)
-                if not (Character and IsReady("Ability", Character.Slot, AbilityNumber)) or AbilityNumber == 4 and Character.Mastery.Level <= 0 then return end
+                if not (Character and IsReady("Ability", Character.Slot, AbilityNumber)) or AbilityNumber == 4 and Character.Mastery.Level < 100 then return end
                 local Equipped = Remotes.Functions.FuncInteract:InvokeServer("EquipAbility", Character.Slot)
                 if Equipped then Remotes.Events.Interact:FireServer("Ability", AbilityNumber, Character.Slot, Character.Name, "Began") end
             elseif Type == "Gadget" then
