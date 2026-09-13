@@ -92,32 +92,59 @@ local Assets = Services.ReplicatedStorage:FindFirstChild("Assets")
 local Thrown, Enemies = workspace:FindFirstChild("Thrown"), workspace:FindFirstChild("Zombies")
 local Modules, Remotes = {}, { Events = {}, Functions = {} }
 
+
+
 --// Functions
 
 
 
-local WhileLoop = function(Function, Wait)
+local WhileLoop = function(Function, Wait, Condition)
+    Condition = Condition or function() return true end
     task.spawn(function()
-        while true do Function() task.wait(Wait) end
+        while Condition() do Function() task.wait(Wait) end
     end)
 end
 
+local WaitForChild = function(Configuration)
+    local Parent, Child, Duration, WhichIsA, DeepSearch = Configuration.Parent, Configuration.Child, Configuration.Duration, Configuration.WhichIsA, Configuration.DeepSearch
+    local Start, Target = tick()
+    while not Target do
+        if Duration and tick() - Start >= Duration then break end
+        if WhichIsA and Child then
+            for _, Instance in (DeepSearch and Parent:QueryDescendants(WhichIsA) or Parent:GetChildren()) do
+                if (DeepSearch and not Instance:IsA(WhichIsA)) or Instance.Name ~= Child then continue end
+                Target = Instance
+                break
+            end
+        else
+            Target = WhichIsA and Parent:FindFirstChildWhichIsA(WhichIsA, DeepSearch) or Parent:FindFirstChild(Child, DeepSearch)
+        end
+        task.wait()
+    end
+    return Target
+end
+
 local InitMatchData = function()
-    MatchData.Self = workspace:FindFirstChild("MatchConfig")
+    MatchData.Self = WaitForChild({Parent = workspace, Child = "MatchConfig", WhichIsA = "Folder"})
     for _, Data in MatchData.Self:GetChildren() do
         if Data.ClassName:find("Value") then MatchData[Data.Name] = Data.Value end 
     end
-end; if InMatch then InitMatchData() end
+end if InMatch then InitMatchData() end
+
+local FetchAssets = function()
+    if Assets then return end
+    Assets = WaitForChild({Parent = Services.ReplicatedStorage, Child = "Assets", WhichIsA = "Folder"})
+end FetchAssets()
 
 local InitModules = function(WantedModules)
-    for _, Module in Assets:FindFirstChild("Modules"):QueryDescendants("ModuleScript") do
+    for _, Module in WaitForChild({Parent = Assets, Child = "Modules", WhichIsA = "Folder"}):QueryDescendants("ModuleScript") do
         if not table.find(WantedModules, Module.Name) or Module.Parent.Name == "BezierTween" and Module.Name == "Utils" then continue end
         task.spawn(function()
             local Success, RequiredModule = pcall(require, Module)
             Modules[Module.Name] = Success and RequiredModule or nil
         end)
     end
-end; InitModules({"ItemsData", "CombatData", "Utils", "ReplayPolicy", "CodeRewards"})
+end InitModules({"ItemsData", "CombatData", "Utils", "ReplayPolicy", "CodeRewards"})
 
 local InitRemotes = function()
     local GetRemotes = function(Container) 
@@ -128,16 +155,16 @@ local InitRemotes = function()
                 Remotes.Functions[Remote.Name] = Remote
             end
         end
-    end; GetRemotes(Assets:FindFirstChild("Remotes")) GetRemotes(Assets:FindFirstChild("Requests"))
-end; InitRemotes()
+    end; GetRemotes(WaitForChild({Parent = Assets, Child = "Remotes", WhichIsA = "Folder"})) GetRemotes(WaitForChild({Parent = Assets, Child = "Requests", WhichIsA = "Folder"}))
+end InitRemotes()
 
 local InitClient = function()
     Client.Player, Client.Characters, Client.Gadgets = Services.Players.LocalPlayer, {}, {}
-    --repeat task.wait() until Client.Player:GetAttribute("Loaded")
-    Client.Guis, Client.Character = Client.Player:FindFirstChildOfClass("PlayerGui"), Client.Player.Character
+    if InLobby then repeat task.wait() until Client.Player:GetAttribute("Loaded") end
+    Client.Guis, Client.Character = WaitForChild({Parent = Client.Player, WhichIsA = "PlayerGui"}), Client.Player.Character
     Client.Humanoid, Client.Head = Client.Character and Client.Character:FindFirstChildOfClass("Humanoid"), Client.Character and Client.Character:FindFirstChild("Head")
     Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
-    Client.Data, Client.HUD = Client.Player:WaitForChild("Data"), Client.Guis:FindFirstChild("HUD")
+    Client.Data, Client.HUD = WaitForChild({Parent = Client.Player, Child = "Data", WhichIsA = "Folder"}), WaitForChild({Parent = Client.Guis, Child = "HUD"})
     
     Client.Get = function(Name)
         for _, Character in ipairs(Client.Characters) do
@@ -149,13 +176,13 @@ local InitClient = function()
     end
     
     local function GetCharactersAndGadgets()
-        local CharactersMastery = Modules.Utils.Decode(Client.Data:FindFirstChild("AbilityMastery").Value)
-        for Slot, Character in Modules.Utils.Decode(Client.Data:FindFirstChild("AbilitySlots").Value) do
+        local CharactersMastery = Modules.Utils.Decode(WaitForChild({Parent = Client.Data, Child = "AbilityMastery", WhichIsA = "StringValue"}).Value)
+        for Slot, Character in Modules.Utils.Decode(WaitForChild({Parent = Client.Data, Child = "AbilitySlots", WhichIsA = "StringValue"}).Value) do
             local CharacterMastery = CharactersMastery[Character.Name] or {}
             Character.Slot, Character.Mastery, Character.Upgrades = Slot, {Level = CharacterMastery.Level or 0, Exp = CharacterMastery.EXP or 0}, CharactersMastery.Upgrades or {}
             Client.Characters[tonumber(string.match(Slot, "%d+"))] = Character
         end
-        for Slot, Gadget in Modules.Utils.Decode(Client.Data:FindFirstChild("GadgetSlots").Value) do
+        for Slot, Gadget in Modules.Utils.Decode(WaitForChild({Parent = Client.Data, Child = "GadgetSlots", WhichIsA = "StringValue"}).Value) do
             local Data = Modules.ItemsData.Gadgets[Gadget.Name] or {}
             Gadget.Slot, Gadget.MaxMeter = Slot, Data.GadgetMeter or math.huge
             Client.Gadgets[tonumber(string.match(Slot, "%d+"))] = Gadget 
@@ -295,8 +322,10 @@ local InitLobby = function()
     end InitAutoRoll()
     
     local HandleRedeemCodes = function()
-        if not (InLobby and Lobby.AutoRedeemCodes and Client.Data:FindFirstChild("Codes") and Modules.CodeRewards) then return end
-        local Redeemed = Modules.Utils.Decode(Client.Data.Codes.Value)
+        if not (InLobby and Lobby.AutoRedeemCodes and Modules.CodeRewards) then return end
+        local Codes = WaitForChild({Parent = Client.Data, Child = "Codes", WhichIsA = "StringValue"})
+        local Redeemed = Codes and Modules.Utils.Decode(Codes.Value)
+        if not Redeemed then return end
         for Code, Data in Modules.CodeRewards do
             if table.find(Redeemed, Code) or Data.Expired or Data.GroupRoleRequired or Data.GroupRankRequired then continue end
             Modules.Utils.Notify("Redeemed Code: "..Code, "White", 30)
@@ -604,7 +633,7 @@ end InitMisc()
 Connections.Heartbeat = Services.Run.Heartbeat:Connect(function()
     Lobby, Match, Misc = Atomizer.Lobby, Atomizer.Match, Atomizer.Misc
     for Name, Function in RunIn.Heartbeat do
-        Function()
+        task.spawn(Function)
     end
 end)
 
