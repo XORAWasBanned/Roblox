@@ -10,8 +10,8 @@ getgenv().Atomizer = {
             AutoAbilities = {
                 Enabled = true,
                 [1] = {"King Of Greed", "Elf Mage"},
-                [2] = {"Joe Kid", "King Of Greed", "Elf Mage"},
-                [3] = {"Joe Kid", "King Of Greed", "Elf Mage"},
+                [2] = {"King Of Greed", "Elf Mage", "Joe Kid"},
+                [3] = {"King Of Greed", "Elf Mage"},
                 [4] = {"Soul Reaper", "Joe Kid"},
             },
             AutoGadgets = {
@@ -361,7 +361,7 @@ local InitMatch = function()
                 Remotes.Events.Interact:FireServer("M1", Name, CurrentTime)
             elseif Type == "Ability" and AbilityNumber then
                 local Character = Client.Get(Name)
-                if not (Character and IsReady("Ability", Character.Slot, AbilityNumber)) or AbilityNumber == 4 and Character.Mastery.Level < 100 then return end
+                if not (Character and IsReady("Ability", Character.Slot, AbilityNumber)) or AbilityNumber == 4 and Character.Mastery.Level < 100 or Client.Character:FindFirstChild("NoAttack") then return end
                 local Equipped = Remotes.Functions.FuncInteract:InvokeServer("EquipAbility", Character.Slot)
                 if Equipped then Remotes.Events.Interact:FireServer("Ability", AbilityNumber, Character.Slot, Character.Name, "Began") end
             elseif Type == "Gadget" then
@@ -376,6 +376,7 @@ local InitMatch = function()
             CharacterSlot = CharacterSlot:find("Slot") and CharacterSlot or Client.Get(CharacterSlot) and Client.Get(CharacterSlot).Slot
             local Key = CharacterSlot.."_"..AbilityNumber
             Abilities.OnCooldown[Key] = true
+            Modules.Utils.Notify("Used Ability: " .. Key, "White", 2.5)
             task.wait(AbilityDuration)
             Abilities.OnCooldown[Key] = nil
         end)
@@ -409,13 +410,25 @@ local InitMatch = function()
         
         WhileLoop(function()
             if not (Enemy and Match.Combat.AutoAbilities.Enabled) then return end
+            local Slots = {}
+            
             for Ability, Characters in ipairs(Match.Combat.AutoAbilities) do
                 Characters = #Characters > 0 and Characters or Client.Characters.Equipped
                 for _, Character in Characters do
-                    Fire(typeof(Character) == "string" and Character or Character.Name, "Ability", Ability)
+                    local Name = typeof(Character) == "string" and Character or Character.Name
+                    Slots[Name] = Slots[Name] or {}
+                    table.insert(Slots[Name], Ability)
                 end
             end
-        end, 0.1)
+            
+            for Name, Abilities in Slots do
+                for _, Ability in Abilities do
+                    while Client.Character:FindFirstChild("NoAttack") do task.wait() end
+                    Fire(Name, "Ability", Ability)
+                    task.wait(Client.Player:GetNetworkPing())
+                end
+            end
+        end)
     end InitCombat()
     
     local HandleDrops = function()
