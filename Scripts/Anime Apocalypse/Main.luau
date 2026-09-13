@@ -161,10 +161,10 @@ end InitRemotes()
 local InitClient = function()
     Client.Player, Client.Characters, Client.Gadgets = Services.Players.LocalPlayer, {}, {}
     if InLobby then repeat task.wait() until Client.Player:GetAttribute("Loaded") end
-    Client.Guis, Client.Character = WaitForChild({Parent = Client.Player, WhichIsA = "PlayerGui"}), Client.Player.Character
-    Client.Humanoid, Client.Head = Client.Character and Client.Character:FindFirstChildOfClass("Humanoid"), Client.Character and Client.Character:FindFirstChild("Head")
-    Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
-    Client.Data, Client.HUD = WaitForChild({Parent = Client.Player, Child = "Data", WhichIsA = "Folder"}), WaitForChild({Parent = Client.Guis, Child = "HUD"})
+    Client.Guis, Client.Character = WaitForChild({Parent = Client.Player, WhichIsA = "PlayerGui"}), Client.Player.Character or Client.Player.CharacterAdded:Wait()
+    Client.Humanoid, Client.Head = WaitForChild({Parent = Client.Character, WhichIsA = "Humamoid"}), WaitForChild({Parent = Client.Character, Child = "Head"})
+    Client.RootPart = Client.Humanoid.RootPart or WaitForChild({Parent = Client.Character, Child = "HumanoidRootPart"})
+    Client.Data, Client.HUD = WaitForChild({Parent = Client.Player, Child = "Data", WhichIsA = "Folder"}), WaitForChild({Parent = Client.Guis, Child = "HUD", WhichIsA = "ScreenGui"})
     
     Client.Get = function(Name)
         for _, Character in ipairs(Client.Characters) do
@@ -174,6 +174,24 @@ local InitClient = function()
             if Gadget.Name:lower() == Name:lower() then return Gadget end
         end
     end
+    
+    local function InitAntiDisconnect()
+        local VirtualUser = Services.VirtualUser
+        for _, Connection in getconnections(Client.Player.Idled) do Connection:Disconnect() end
+        Connections.ClientIdled = Client.Player.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton1(Vector2.new())
+            VirtualUser:ClickButton2(Vector2.new())
+            Modules.Utils.Notify("Anti Disconnect: Prevented You From Getting Disconnect!", "White", 5)
+        end)
+        local Original; Original = hookfunction(task.wait, function(Duration)
+            if checkcaller() then return Original(Duration) end
+            local Traceback = debug.traceback()
+            if not Traceback:find("AFKTeleport") then return Original(Duration) end
+            Modules.Utils.Notify("Anti Disconnect: Disabled AFK World Teleportation Script!", "White", 5)
+            return coroutine.yield()
+        end)
+    end; InitAntiDisconnect()
     
     local function GetCharactersAndGadgets()
         local CharactersMastery = Modules.Utils.Decode(WaitForChild({Parent = Client.Data, Child = "AbilityMastery", WhichIsA = "StringValue"}).Value)
@@ -203,30 +221,18 @@ local InitClient = function()
         if IsCharacters then Client[Slots].Equipped = EquippedList end
     end
     
-    local function InitOnDeath()
-        local function OnDeath()
+    local function OnDeath()
+        if Connections.ClientCharacterRemoving then Connections.ClientCharacterRemoving:Disconnect() Connections.ClientCharacterRemoving = nil end
+        Connections.ClientCharacterRemoving = Client.Player.CharacterRemoving:Once(function()
             Client.Character, Client.Humanoid, Client.RootPart, Client.Head = nil, nil, nil, nil
-        end
-        Connections.ClientCharacterRemoving = Client.Player.CharacterRemoving:Once(OnDeath)
-    end; InitOnDeath()
+        end)
+    end; OnDeath()
     
-    local function InitAntiDisconnect()
-        local VirtualUser = Services.VirtualUser
-        for _, Connection in getconnections(Client.Player.Idled) do Connection:Disconnect() end
-        Connections.ClientIdled = Client.Player.Idled:Connect(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton1(Vector2.new())
-            VirtualUser:ClickButton2(Vector2.new())
-            Modules.Utils.Notify("Anti Disconnect: Prevented You From Getting Disconnect!", "White", 5)
+    if InMatch and MatchData.Gamemode == "Survival" then
+        Connections.LocalEffectEscaped = Connections.LocalEffectEscaped or Remotes.Events.LocalEffect.OnClientEvent:Connect(function(Name)
+            if Name == "Escaped" then Client.Escaped = true end
         end)
-        local Original; Original = hookfunction(task.wait, function(Duration)
-            if checkcaller() then return Original(Duration) end
-            local Traceback = debug.traceback()
-            if not Traceback:find("AFKTeleport") then return Original(Duration) end
-            Modules.Utils.Notify("Anti Disconnect: Disabled AFK World Teleportation Script!", "White", 5)
-            return coroutine.yield()
-        end)
-    end; InitAntiDisconnect()
+    end
     
     Connections.ClientCharacterAdded = Client.Player.CharacterAdded:Connect(function(Character)
         Client.Character = Character
@@ -235,14 +241,8 @@ local InitClient = function()
             Client.RootPart = Client.Humanoid and Client.Humanoid.RootPart
             task.wait()
         end
-        InitOnDeath()
+        OnDeath()
     end)
-    
-    if InMatch and MatchData.Gamemode == "Survival" then
-        Connections.LocalEffectEscaped = Connections.LocalEffectEscaped or Remotes.Events.LocalEffect.OnClientEvent:Connect(function(Name)
-            if Name == "Escaped" then Client.Escaped = true end
-        end)
-    end
     
     RunIn.Heartbeat.Client = function()
         GetCharactersAndGadgets() GetEquipped("Characters") GetEquipped("Gadgets")
