@@ -162,7 +162,7 @@ local InitClient = function()
     Client.Player, Client.Characters, Client.Gadgets = Services.Players.LocalPlayer, {}, {}
     if InLobby then repeat task.wait() until Client.Player:GetAttribute("Loaded") end
     Client.Guis, Client.Character = WaitForChild({Parent = Client.Player, WhichIsA = "PlayerGui"}), Client.Player.Character or Client.Player.CharacterAdded:Wait()
-    Client.Humanoid, Client.Head = WaitForChild({Parent = Client.Character, WhichIsA = "Humamoid"}), WaitForChild({Parent = Client.Character, Child = "Head"})
+    Client.Humanoid, Client.Head = WaitForChild({Parent = Client.Character, WhichIsA = "Humanoid"}), WaitForChild({Parent = Client.Character, Child = "Head"})
     Client.RootPart = Client.Humanoid.RootPart or WaitForChild({Parent = Client.Character, Child = "HumanoidRootPart"})
     Client.Data, Client.HUD = WaitForChild({Parent = Client.Player, Child = "Data", WhichIsA = "Folder"}), WaitForChild({Parent = Client.Guis, Child = "HUD", WhichIsA = "ScreenGui"})
     
