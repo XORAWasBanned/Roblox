@@ -1,5 +1,5 @@
-local GuiService = game:GetService("GuiService")
-local CoreGui = game:GetService("CoreGui")
+if not game.IsLoaded then game.Loaded:Wait() end
+local CoreGui, GuiService = game:GetService("CoreGui"), game:GetService("GuiService")
 
 local RobloxPromptGui = CoreGui:WaitForChild("RobloxPromptGui", 60)
 local PromptOverlay = RobloxPromptGui:WaitForChild("promptOverlay", 60)
