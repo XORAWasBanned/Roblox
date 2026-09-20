@@ -9,25 +9,27 @@ __/\\\_______/\\\_______/\\\\\_________/\\\\\\\\\_________/\\\\\\\\\____
        __/\\\/___\///\\\____\///\\\\\/_____\/\\\______\//\\\_\/\\\_______\/\\\_ 
         _\///_______\///_______\/////_______\///________\///__\///________\///__
 Universal Tpwalk:
-- Release: 2025/12/11
-- Last Update: ---
-- Version: 1.0.1
+- Release: 2023/11/1
+- Last Update: 2025/12/11
+- Version: 1.2.6
 
-- Lastest Update Log: ---
+- Lastest Update Log: Fixed issues within the script.
 
-© 2025 X_ORA. All Rights Reserved.
+© 2023 X_ORA. All Rights Reserved.
 ]]--
 
---// Script - Velocity Speed \\--
-getgenv().VSpeed = VSpeed or {}
-VSpeed.Name = VSpeed.Name or "Velocity Speed"
-VSpeed.Enabled = VSpeed.Enabled or false
-VSpeed.Speed = VSpeed.Speed or 2
-VSpeed.GUI = VSpeed.GUI
-VSpeed.Keybinds = VSpeed.Keybinds or {}
-VSpeed.Keybinds.VSpeed = VSpeed.Keybinds.VSpeed or "V" or "ButtonA"
-VSpeed.Keybinds.Hide = VSpeed.Keybinds.Hide or "H" or "ButtonB"
-VSpeed.Keybinds.Remove = VSpeed.Keybinds.Remove or "R" or "ButtonC"
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+--// Script - Tpwalk \\--
+getgenv().Tpwalk = Tpwalk or {}
+Tpwalk.Name = Tpwalk.Name or "Teleport Walk"
+Tpwalk.Enabled = Tpwalk.Enabled or false
+Tpwalk.Speed = Tpwalk.Speed or 1
+Tpwalk.GUI = Tpwalk.GUI
+Tpwalk.Keybinds = Tpwalk.Keybinds or {}
+Tpwalk.Keybinds.Tpwalk = Tpwalk.Keybinds.Tpwalk or "T" or "ButtonA"
+Tpwalk.Keybinds.Hide = Tpwalk.Keybinds.Hide or "H" or "ButtonB"
+Tpwalk.Keybinds.Remove = Tpwalk.Keybinds.Remove or "R" or "ButtonC"
 
 if not game.IsLoaded then game.Loaded:Wait() end
 
@@ -35,11 +37,12 @@ local CloneReference = cloneref or function(...) return ... end
 local Services = setmetatable({}, {
     __index = function(Self, Key)
         local Success, Service = pcall(game.FindService, game, Key)
-        if not (Success and Service) then
-            Success, Service = pcall(game.FindService, game, Key.."Service")
+        if not (Success and Service) then 
+            Success, Service = pcall(game.FindService, game, Key.."Service") 
+            if not (Success and Service) then warn(Key, "Doesn't exist as a service!") return end
         end
-        if not (Success and Service) then return warn(Key, "Doesn't exist as a service!") end
-        return CloneReference(Service)
+        rawset(Self, Key, CloneReference(Service))
+        return rawget(Self, Key)
     end
 })
 
@@ -58,20 +61,14 @@ local Connections = {}
 
 
 
-local function VelocitySpeed(Enabled)
+local function TeleportWalk(Enabled)
     if Enabled == true then
-        Services.Run:BindToRenderStep("Velocity Speed", Enum.RenderPriority.Character.Value, function(DeltaTime)
+        Services.Run:BindToRenderStep("Teleport Walk", Enum.RenderPriority.Camera.Value - 1, function(DeltaTime)
             if not (LocalCharacter and LocalHumanoid and LocalRootPart) then return end
-            local WalkSpeed = LocalHumanoid.WalkSpeed
-            local MoveDirection = LocalHumanoid.MoveDirection
-            local Speed = 8 + WalkSpeed * VSpeed.Speed
-            local YVelocity = vector.create(0, LocalRootPart.AssemblyLinearVelocity.Y, 0)
-            local MoveVelocity = YVelocity + MoveDirection * Speed
-            
-            LocalRootPart.AssemblyLinearVelocity = MoveVelocity
+            LocalRootPart.CFrame = LocalRootPart.CFrame + LocalHumanoid.MoveDirection * DeltaTime * Tpwalk.Speed
         end)
     else
-        Services.Run:UnbindFromRenderStep("Velocity Speed")
+        Services.Run:UnbindFromRenderStep("Teleport Walk")
     end
 end
 
@@ -98,23 +95,23 @@ end)
 
 
 
-local DraggingTicks = { VSpeed = 0, Hide = 0, Remove = 0 }
+local DraggingTicks = { Tpwalk = 0, Hide = 0, Remove = 0 }
 
-if VSpeed.GUI then 
-    VSpeed.GUI:Destroy() 
-    VSpeed.GUI = nil
+if Tpwalk.GUI then 
+    Tpwalk.GUI:Destroy() 
+    Tpwalk.GUI = nil
     
-    Services.Run:UnbindFromRenderStep("Velocity Speed") 
+    Services.Run:UnbindFromRenderStep("Teleport Walk") 
     
-    if VSpeed.Connections then
-        for Index, Connection in VSpeed.Connections do
+    if Tpwalk.Connections then
+        for Index, Connection in Tpwalk.Connections do
             Connection:Disconnect()
             Connections[Index] = nil
         end
-        VSpeed.Connections = nil
+        Tpwalk.Connections = nil
     end
     
-    VelocitySpeed(VSpeed.Enabled)
+    TeleportWalk(Tpwalk.Enabled)
 end
 
 local GUIHolder = Instance.new("ScreenGui", HiddenGui)
@@ -144,7 +141,7 @@ ContainerUIStroke.Color = Color3.fromRGB(40, 40, 80)
 
 local TitleLabel = Instance.new("TextLabel",Container)
 TitleLabel.Name = "TitleLabel"
-TitleLabel.Text = "Velocity Speed"
+TitleLabel.Text = Tpwalk.Name
 TitleLabel.Font = Enum.Font.PermanentMarker
 TitleLabel.TextSize = 25
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -165,7 +162,7 @@ TitleLabel.ZIndex = 1
 
 local SpeedLabel = Instance.new("TextLabel", Container)
 SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Text = VSpeed.Enabled and "Velocity Speed: "..tostring(VSpeed.Speed) or "Greetings " .. LocalPlayer.DisplayName 
+SpeedLabel.Text = Tpwalk.Enabled and "Speed: "..tostring(Tpwalk.Speed) or "Greetings " .. LocalPlayer.DisplayName 
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 16
 SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -187,14 +184,14 @@ Instance.new("UICorner", SpeedLabel).CornerRadius = UDim.new(0, 10)
 
 local SpeedChanger = Instance.new("TextBox", Container)
 SpeedChanger.Name = "Speed Changer"
-SpeedChanger.Text = VSpeed.Enabled and tostring(VSpeed.Speed) or ""
+SpeedChanger.Text = Tpwalk.Enabled and tostring(Tpwalk.Speed) or ""
 SpeedChanger.Font = Enum.Font.GothamBold
 SpeedChanger.TextSize = 14.5
 SpeedChanger.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedChanger.TextStrokeTransparency = 1
 SpeedChanger.TextScaled = false
 SpeedChanger.TextWrapped = true
-SpeedChanger.PlaceholderText = "Change Velocity Speed Here!"
+SpeedChanger.PlaceholderText = "Change Tpwalk Here!"
 SpeedChanger.PlaceholderColor3 = Color3.fromRGB(200, 200, 200)
 SpeedChanger.ClearTextOnFocus = true
 SpeedChanger.MultiLine = true
@@ -211,32 +208,32 @@ SpeedChanger.ClipsDescendants = false
 Instance.new("UICorner", SpeedChanger).CornerRadius = UDim.new(0, 10)
 
 if Services.UserInput.TouchEnabled then
-    local VSpeedButton = Instance.new("TextButton", GUIHolder)
-    VSpeedButton.Name = "VSpeedButton"
-    VSpeedButton.Text = VSpeed.Enabled and 'VSpeed: <font color="rgb(0,255,0)" size="20">ON</font>' or 'VSpeed: <font color="rgb(255,0,0)" size="20">OFF</font>'
-    VSpeedButton.Font = Enum.Font.GothamBold
-    VSpeedButton.TextSize = 20
-    VSpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    VSpeedButton.TextTransparency = 0
-    VSpeedButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    VSpeedButton.TextStrokeTransparency = 0
-    VSpeedButton.TextScaled = false
-    VSpeedButton.RichText = true
-    VSpeedButton.BackgroundColor3 = Color3.fromRGB(35, 35, 65)
-    VSpeedButton.BorderSizePixel = 0
-    VSpeedButton.Size = UDim2.new(0, 125, 0, 45) 
-    VSpeedButton.Position = UDim2.new(0.5, 0, 0.19, 0) 
-    VSpeedButton.AnchorPoint = Vector2.new(0.5, 0.5)
-    VSpeedButton.AutoButtonColor = true
-    VSpeedButton.Draggable = true
-    VSpeedButton.Active = true
-    VSpeedButton.ZIndex = 1
-    Instance.new("UICorner", VSpeedButton).CornerRadius = UDim.new(0, 10)
+    local TpwalkButton = Instance.new("TextButton", GUIHolder)
+    TpwalkButton.Name = "TpwalkButton"
+    TpwalkButton.Text = Tpwalk.Enabled and 'Tpwalk: <font color="rgb(0,255,0)" size="20">ON</font>' or 'Tpwalk: <font color="rgb(255,0,0)" size="20">OFF</font>'
+    TpwalkButton.Font = Enum.Font.GothamBold
+    TpwalkButton.TextSize = 20
+    TpwalkButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TpwalkButton.TextTransparency = 0
+    TpwalkButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    TpwalkButton.TextStrokeTransparency = 0
+    TpwalkButton.TextScaled = false
+    TpwalkButton.RichText = true
+    TpwalkButton.BackgroundColor3 = Color3.fromRGB(35, 35, 65)
+    TpwalkButton.BorderSizePixel = 0
+    TpwalkButton.Size = UDim2.new(0, 125, 0, 45) 
+    TpwalkButton.Position = UDim2.new(0.5, 0, 0.19, 0) 
+    TpwalkButton.AnchorPoint = Vector2.new(0.5, 0.5)
+    TpwalkButton.AutoButtonColor = true
+    TpwalkButton.Draggable = true
+    TpwalkButton.Active = true
+    TpwalkButton.ZIndex = 1
     
-    local VelocitySpeedButtonUIStroke = Instance.new("UIStroke",VSpeedButton)
-    VelocitySpeedButtonUIStroke.Thickness = 4
-    VelocitySpeedButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    VelocitySpeedButtonUIStroke.Color = Color3.fromRGB(40, 40, 80)
+    local TeleportWalkButtonUIStroke = Instance.new("UIStroke",TpwalkButton)
+    TeleportWalkButtonUIStroke.Thickness = 4
+    TeleportWalkButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    TeleportWalkButtonUIStroke.Color = Color3.fromRGB(40, 40, 80)
+    Instance.new("UICorner", TpwalkButton).CornerRadius = UDim.new(0, 10)
     
     local HideButton = Instance.new("TextButton", GUIHolder)
     HideButton.Name = "HideButton"
@@ -287,7 +284,7 @@ if Services.UserInput.TouchEnabled then
     RemoveButton.Draggable = true
     RemoveButton.ZIndex = 1
     Instance.new("UICorner", RemoveButton).CornerRadius = UDim.new(0, 10)
-    
+
     local RemoveButtonUIStroke = Instance.new("UIStroke",RemoveButton)
     RemoveButtonUIStroke.Thickness = 4
     RemoveButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -299,16 +296,16 @@ if Services.UserInput.TouchEnabled then
     
     
     
-    Connections[#Connections+1] = VSpeedButton.MouseButton1Down:Connect(function()
-        DraggingTicks.VSpeed = os.clock()
+    Connections[#Connections+1] = TpwalkButton.MouseButton1Down:Connect(function()
+        DraggingTicks.Tpwalk = os.clock()
     end)
     
-    Connections[#Connections+1] = VSpeedButton.MouseButton1Up:Connect(function()
-        if os.clock() - DraggingTicks.VSpeed > 0.15 then return end
-        SpeedLabel.Text = "Velocity Speed: "..tostring(VSpeed.Speed)
-        VSpeed.Enabled = not VSpeed.Enabled
-        VSpeedButton.Text = VSpeed.Enabled and 'VSpeed: <font color="rgb(0,255,0)" size="20">ON</font>' or 'VSpeed: <font color="rgb(255,0,0)" size="20">OFF</font>'
-        VelocitySpeed(VSpeed.Enabled)
+    Connections[#Connections+1] = TpwalkButton.MouseButton1Up:Connect(function()
+        if os.clock() - DraggingTicks.Tpwalk > 0.15 then return end
+        SpeedLabel.Text = "Tpwalk: "..tostring(Tpwalk.Speed)
+        Tpwalk.Enabled = not Tpwalk.Enabled
+        TpwalkButton.Text = Tpwalk.Enabled and 'Tpwalk: <font color="rgb(0,255,0)" size="20">ON</font>' or 'Tpwalk: <font color="rgb(255,0,0)" size="20">OFF</font>'
+        TeleportWalk(Tpwalk.Enabled)
     end)
     
     Connections[#Connections+1] = HideButton.MouseButton1Down:Connect(function()
@@ -328,10 +325,10 @@ if Services.UserInput.TouchEnabled then
     
     Connections[#Connections+1] = RemoveButton.MouseButton1Up:Connect(function()
         if os.clock() - DraggingTicks.Remove > 0.15 then return end
-        VSpeed.Enabled = false
-        VSpeed.GUI = nil
+        Tpwalk.Enabled = false
+        Tpwalk.GUI = nil
         DraggingTicks = nil
-        VelocitySpeed(VSpeed.Enabled)
+        TeleportWalk(Tpwalk.Enabled)
         GUIHolder:Destroy()
         for Index, Connection in Connections do 
             Connection:Disconnect() 
@@ -344,21 +341,21 @@ elseif Services.UserInput.KeyboardEnabled or Services.UserInput.GamepadEnabled t
         if not Services.UserInput.KeyboardEnabled and not Services.UserInput.GamepadEnabled then Connections["InputBegan"]:Disconnect() Connections["InputBegan"] = nil end
         if Typing then return end
         
-        if Input.KeyCode == Enum.KeyCode[VSpeed.Keybinds.VSpeed] then
-            VSpeed.Enabled = not VSpeed.Enabled
-            VelocitySpeed(VSpeed.Enabled)
-            SpeedLabel.Text = "Tpwalk Speed: " .. tostring(VSpeed.Speed)
+        if Input.KeyCode == Enum.KeyCode[Tpwalk.Keybinds.Tpwalk] then
+            Tpwalk.Enabled = not Tpwalk.Enabled
+            TeleportWalk(Tpwalk.Enabled)
+            SpeedLabel.Text = "Tpwalk Speed: " .. tostring(Tpwalk.Speed)
         end
         
-        if Input.KeyCode == Enum.KeyCode[VSpeed.Keybinds.Hide] then
+        if Input.KeyCode == Enum.KeyCode[Tpwalk.Keybinds.Hide] then
             Container.Visible = not Container.Visible
         end
         
-        if Input.KeyCode == Enum.KeyCode[VSpeed.Keybinds.Remove] then
-            VSpeed.Enabled = false
-            VSpeed.GUI = nil
+        if Input.KeyCode == Enum.KeyCode[Tpwalk.Keybinds.Remove] then
+            Tpwalk.Enabled = false
+            Tpwalk.GUI = nil
             DraggingTicks = nil
-            VelocitySpeed(VSpeed.Enabled)
+            TeleportWalk(Tpwalk.Enabled)
             GUIHolder:Destroy()
             for Index, Connection in Connections do 
                 Connection:Disconnect() 
@@ -373,10 +370,10 @@ Connections[#Connections+1] = SpeedChanger.FocusLost:Connect(function()
     local Number = tonumber(SpeedChanger.Text)
     local String = tostring(Number)
     
-    SpeedChanger.Text = String ~= "nil" and SpeedChanger.Text or tostring(VSpeed.Speed)
+    SpeedChanger.Text = String ~= "nil" and SpeedChanger.Text or tostring(Tpwalk.Speed)
     SpeedLabel.Text = "Speed: "..SpeedChanger.Text
-    VSpeed.Speed = tonumber(SpeedChanger.Text)
+    Tpwalk.Speed = tonumber(SpeedChanger.Text)
 end)
 
-VSpeed.GUI = GUIHolder
-VSpeed.Connections = Connections
+Tpwalk.GUI = GUIHolder
+Tpwalk.Connections = Connections
