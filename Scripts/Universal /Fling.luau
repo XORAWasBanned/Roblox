@@ -1,23 +1,21 @@
 --[[
- .----------------.  .----------------.  .----------------.  .----------------.  .----------------. 
-| .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |
-| |  ____  ____  | || |              | || |     ____     | || |  _______     | || |      __      | |
-| | |_  _||_  _| | || |              | || |   .'    `.   | || | |_   __ \    | || |     /  \     | |
-| |   \ \  / /   | || |              | || |  /  .--.  \  | || |   | |__) |   | || |    / /\ \    | |
-| |    > `' <    | || |              | || |  | |    | |  | || |   |  __ /    | || |   / ____ \   | |
-| |  _/ /'`\ \_  | || |              | || |  \  `--'  /  | || |  _| |  \ \_  | || | _/ /    \ \_ | |
-| | |____||____| | || |   _______    | || |   `.____.'   | || | |____| |___| | || ||____|  |____|| |
-| |              | || |  |_______|   | || |              | || |              | || |              | |
-| '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
- '----------------'  '----------------'  '----------------'  '----------------'  '----------------' 
+__/\\\_______/\\\_______/\\\\\_________/\\\\\\\\\_________/\\\\\\\\\____        
+ _\///\\\___/\\\/______/\\\///\\\_____/\\\///////\\\_____/\\\\\\\\\\\\\__       
+  ___\///\\\\\\/______/\\\/__\///\\\__\/\\\_____\/\\\____/\\\/////////\\\_      
+   _____\//\\\\_______/\\\______\//\\\_\/\\\\\\\\\\\/____\/\\\_______\/\\\_     
+    ______\/\\\\______\/\\\_______\/\\\_\/\\\//////\\\____\/\\\\\\\\\\\\\\\_    
+     ______/\\\\\\_____\//\\\______/\\\__\/\\\____\//\\\___\/\\\/////////\\\_   
+      ____/\\\////\\\____\///\\\__/\\\____\/\\\_____\//\\\__\/\\\_______\/\\\_  
+       __/\\\/___\///\\\____\///\\\\\/_____\/\\\______\//\\\_\/\\\_______\/\\\_ 
+        _\///_______\///_______\/////_______\///________\///__\///________\///__
 Universal Fling Script:
 - Release Date: 2026/09/17
 - Last Update: -
-- Verison: 1.0.0
+- Verison: 1.0.1
 
 - Lastest Update Log: -
 
-© 2026 X_ORA. All Rights Reserved.
+© 2026 XORA. All Rights Reserved.
 ]]--
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -239,7 +237,6 @@ local InitFling = function()
             Connections.Heartbeat = Services.Run.Heartbeat:Connect(function()
                 if Target.Player.Parent == nil then return ToggleFling() end
                 if not (Client.RootPart and Target.RootPart) then return Client.FlingVisualizer and Client.FlingVisualizer.SetVisibility(false) end
-                
                 Client.Original = {
                     CFrame = Client.RootPart.CFrame,
                     Velocity = Client.RootPart.Velocity
@@ -252,8 +249,10 @@ local InitFling = function()
                     Client.FlingVisualizer.SetCFrame(NewCFrame)
                 end
                 
+                Client.RootPart.Anchored = true
+                Client.RootPart.Anchored = false
                 Client.RootPart.CFrame = NewCFrame
-                Client.RootPart.Velocity = vector.create(RandomSign(), RandomSign(), RandomSign()) * Max
+                Client.RootPart.AssemblyLinearVelocity = vector.create(RandomSign(), RandomSign(), RandomSign()) * Max
             end)
             
             Services.Run:BindToRenderStep("Client Desync", 199, function()
@@ -273,9 +272,3 @@ local InitFling = function()
         end)
     end)
 end; InitFling()
-
-while setfflag and task.wait(1) do
-    setfflag("S2PhysicsSenderRate", "2147483648")
-    setfflag("PhysicsSenderMaxBandwidthBps", "2147483648")
-    setfflag("PhysicsSenderMaxBandwidthBpsScaling", "2147483648")
-end
