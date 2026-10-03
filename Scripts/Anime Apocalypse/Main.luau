@@ -10,9 +10,9 @@ getgenv().Atomizer = {
             AutoAbilities = {
                 Enabled = true,
                 [1] = {"King Of Greed", "Elf Mage"},
-                [2] = {"King Of Greed", "Elf Mage", "Joe Kid"},
+                [2] = {"King Of Greed", "Elf Mage"},
                 [3] = {"King Of Greed", "Elf Mage"},
-                [4] = {"Soul Reaper", "Joe Kid"},
+                [4] = {"Soul Reaper"},
             },
             AutoGadgets = {
                 Enabled = true,
