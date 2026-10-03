@@ -86,11 +86,8 @@ local Services = setmetatable({}, {
     end
 })
 
-local Client, Connections, RunIn, InLobby, MatchData = {}, {}, {Heartbeat = {}}, workspace:GetAttribute("NoCooldowns"), {}
+local Client, Connections, RunIn, Modules, Remotes, InLobby, MatchData, Assets, Thrown, Enemies = {}, {}, {Heartbeat = {}}, {}, { Events = {}, Functions = {} }, workspace:GetAttribute("NoCooldowns"), {}
 local InMatch = not InLobby
-local Assets = Services.ReplicatedStorage:FindFirstChild("Assets")
-local Thrown, Enemies = workspace:FindFirstChild("Thrown"), workspace:FindFirstChild("Zombies")
-local Modules, Remotes = {}, { Events = {}, Functions = {} }
 
 
 
@@ -98,13 +95,12 @@ local Modules, Remotes = {}, { Events = {}, Functions = {} }
 
 
 
--- FIX: pcall added. One error no longer kills the loop forever.
 local WhileLoop = function(Function, Wait, Condition)
     Condition = Condition or function() return true end
     task.spawn(function()
         while Condition() do
             local Success, Error = pcall(Function)
-            if not Success then warn("[Atomizer] Loop error:", Error) end
+            if not Success then warn("[Atomizer] Loop Error:", Error) end
             task.wait(Wait)
         end
     end)
@@ -127,25 +123,14 @@ local WaitForChild = function(Configuration)
         task.wait()
     end
     return Target
-end
+end Assets = WaitForChild({Parent = Services.ReplicatedStorage, Child = "Assets"})
 
 local InitMatchData = function()
     MatchData.Self = WaitForChild({Parent = workspace, Child = "MatchConfig", WhichIsA = "Folder"})
     for _, Data in MatchData.Self:GetChildren() do
         if Data.ClassName:find("Value") then MatchData[Data.Name] = Data.Value end 
     end
-end if InMatch then InitMatchData() end
-
--- FIX: Thrown and Enemies can be nil at the start of a match. Wait for them.
-if InMatch then
-    Thrown = Thrown or WaitForChild({Parent = workspace, Child = "Thrown"})
-    Enemies = Enemies or WaitForChild({Parent = workspace, Child = "Zombies"})
-end
-
-local FetchAssets = function()
-    if Assets then return end
-    Assets = WaitForChild({Parent = Services.ReplicatedStorage, Child = "Assets", WhichIsA = "Folder"})
-end FetchAssets()
+end if InMatch then Thrown, Enemies = WaitForChild({Parent = workspace, Child = "Thrown"}), WaitForChild({Parent = workspace, Child = "Zombies"}) InitMatchData() end
 
 local InitModules = function(WantedModules)
     for _, Module in WaitForChild({Parent = Assets, Child = "Modules", WhichIsA = "Folder"}):QueryDescendants("ModuleScript") do
@@ -155,12 +140,10 @@ local InitModules = function(WantedModules)
             Modules[Module.Name] = Success and RequiredModule or nil
         end)
     end
-    
-    -- FIX: Wait until the modules are really loaded (max 10 seconds).
     local Start = tick()
     for _, Name in WantedModules do
         while not Modules[Name] and tick() - Start < 10 do task.wait() end
-        if not Modules[Name] then warn("[Atomizer] Module failed to load:", Name) end
+        if not Modules[Name] then warn("[Atomizer] Module Failed To Load:", Name) end
     end
 end InitModules({"ItemsData", "CombatData", "Utils", "ReplayPolicy", "CodeRewards"})
 
@@ -214,7 +197,6 @@ local InitClient = function()
         local CharactersMastery = Modules.Utils.Decode(WaitForChild({Parent = Client.Data, Child = "AbilityMastery", WhichIsA = "StringValue"}).Value)
         for Slot, Character in Modules.Utils.Decode(WaitForChild({Parent = Client.Data, Child = "AbilitySlots", WhichIsA = "StringValue"}).Value) do
             local CharacterMastery = CharactersMastery[Character.Name] or {}
-            -- FIX: was CharactersMastery.Upgrades (typo)
             Character.Slot, Character.Mastery, Character.Upgrades = Slot, {Level = CharacterMastery.Level or 0, Exp = CharacterMastery.EXP or 0}, CharacterMastery.Upgrades or {}
             Client.Characters[tonumber(string.match(Slot, "%d+"))] = Character
         end
@@ -244,7 +226,7 @@ local InitClient = function()
         Connections.ClientCharacterRemoving = Client.Player.CharacterRemoving:Once(function()
             Client.Character, Client.Humanoid, Client.RootPart, Client.Head = nil, nil, nil, nil
         end)
-    end; OnDeath()
+    end OnDeath()
     
     if InMatch and MatchData.Gamemode == "Survival" then
         Connections.LocalEffectEscaped = Connections.LocalEffectEscaped or Remotes.Events.LocalEffect.OnClientEvent:Connect(function(Name)
@@ -262,14 +244,12 @@ local InitClient = function()
         OnDeath()
     end)
     
-    -- FIX: Decoding the data every frame was slow. Now it runs once,
-    -- when the data changes, and as a slow backup once per second.
     local Refresh = function()
         local Success, Error = pcall(function()
             GetCharactersAndGadgets() GetEquipped("Characters") GetEquipped("Gadgets")
         end)
-        if not Success then warn("[Atomizer] Refresh error:", Error) end
-    end; Refresh()
+        if not Success then warn("[Atomizer] Refresh Error:", Error) end
+    end Refresh()
     
     for _, Name in {"AbilityMastery", "AbilitySlots", "GadgetSlots"} do
         local Value = Client.Data:FindFirstChild(Name)
@@ -282,7 +262,7 @@ local InitClient = function()
         LastRefresh = os.clock()
         Refresh()
     end
-end; InitClient()
+end InitClient()
 
 local InitLobby = function()
     if InMatch then return end
@@ -404,7 +384,6 @@ local InitMatch = function()
         
         local IsReady = function(Type, ...)
             if Type == "M1" then
-                -- FIX: GetTraitBuffs can return nil
                 local TraitBuffs = Modules.Utils.GetTraitBuffs(Client.Player) or {}
                 local CurrentTime, AttackSpeed, HasteBoost = workspace:GetServerTimeNow(), TraitBuffs.AttackSpeedMulti or 1, Client.Character and Client.Character:FindFirstChild("HasteBoost")
                 if HasteBoost then AttackSpeed *= HasteBoost.Value end
@@ -427,7 +406,6 @@ local InitMatch = function()
                 Remotes.Events.Interact:FireServer("M1", Name, CurrentTime)
             elseif Type == "Ability" and AbilityNumber then
                 local Character = Client.Get(Name)
-                -- FIX: Client.Character can be nil after death
                 if not (Character and Client.Character and IsReady("Ability", Character.Slot, AbilityNumber)) or AbilityNumber == 4 and Character.Mastery.Level < 100 or Client.Character:FindFirstChild("NoAttack") then return end
                 local Equipped = Remotes.Functions.FuncInteract:InvokeServer("EquipAbility", Character.Slot)
                 if Equipped then Remotes.Events.Interact:FireServer("Ability", AbilityNumber, Character.Slot, Character.Name, "Began") end
@@ -441,7 +419,7 @@ local InitMatch = function()
         Connections.UsedAbilityEvent = Remotes.Events.UsedAbility.OnClientEvent:Connect(function(_, AbilityDuration, CharacterSlot, AbilityNumber)
             if not (CharacterSlot and AbilityNumber and AbilityDuration) then return end
             CharacterSlot = CharacterSlot:find("Slot") and CharacterSlot or Client.Get(CharacterSlot) and Client.Get(CharacterSlot).Slot
-            if not CharacterSlot then return end -- FIX: slot can be nil
+            if not CharacterSlot then return end
             local Key = CharacterSlot.."_"..AbilityNumber
             Abilities.OnCooldown[Key] = true
             task.wait(AbilityDuration)
@@ -450,8 +428,7 @@ local InitMatch = function()
         
         RunIn.Heartbeat.Combat = function()
             if not Client.RootPart then return end
-            -- FIX: removed the unused "Highlight" that was added inside the Zombies folder.
-            -- Game scripts that loop over Zombies:GetChildren() can break on it.
+            local Highlight = Enemies:FindFirstChild("Highlight") or Instance.new("Highlight", Enemies)
             
             Enemy = GetTarget()
             if not Enemy then return end
@@ -491,7 +468,6 @@ local InitMatch = function()
             
             for Name, AbilityList in Slots do
                 for _, Ability in AbilityList do
-                    -- FIX: Client.Character can be nil after death
                     while Client.Character and Client.Character:FindFirstChild("NoAttack") do task.wait() end
                     Fire(Name, "Ability", Ability)
                     task.wait(Client.Player:GetNetworkPing())
@@ -560,7 +536,6 @@ local InitMatch = function()
                 end
             end
             
-            -- FIX: math.random(1, 0) errors when Cards is empty
             SelectedCard = SelectedCard or Cards[math.random(1, math.max(#Cards, 1))]
             if not SelectedCard then return end
             Remotes.Functions.FuncInteract:InvokeServer("DrawCard", SelectedCard.Name)
@@ -625,7 +600,6 @@ local InitMatch = function()
             for _, Entry in Entries:GetChildren() do
                 local ProximityPrompt = Entry:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if not ProximityPrompt then continue end
-                -- FIX: the Door can be missing
                 local Door = MatchData.Map == "Prison" and Entry:FindFirstChild("Door")
                 local Destination = MatchData.Map == "Shibuya" and Entry:GetPivot() or Door and Door:GetPivot()
                 if Destination and Client.RootPart then Client.RootPart.CFrame = Destination end
@@ -660,10 +634,6 @@ local InitMisc = function()
             if Child.Name == "EmittedPartsUsingPart_icle" then Child:Destroy() end
         end)
         
-        -- FIX: Thrown is nil in the lobby.
-        -- FIX: Items were destroyed the moment they were added, before the game finished
-        -- setting them up (the Pickup is added later). Game scripts then got nil values
-        -- ("Argument 1 missing or nil"). Now we wait a short time first.
         if Thrown then
             Connections["ThrownChildAdded"] = Thrown.ChildAdded:Connect(function(Child)
                 task.wait(0.5)
@@ -671,7 +641,6 @@ local InitMisc = function()
             end)
         end
         
-        -- FIX: same here. Give the game one moment to finish using the object.
         Connections["CameraChildAdded"] = workspace.CurrentCamera.ChildAdded:Connect(function(Child)
             task.wait(0.1)
             if Child.Parent then Child:Destroy() end
