@@ -123,7 +123,7 @@ local WaitForChild = function(Configuration)
                 break
             end
         else
-            Target = WhichIsA and Parent:FindFirstChildWhichIsA(WhichIsA, DeepSearch) or Parent:FindFirstChild(Child, DeepSearch)
+            Target = WhichIsA and Parent:FindFirstChildWhichIsA(WhichIsA, DeepSearch) or Child and Parent:FindFirstChild(Child, DeepSearch)
         end
         task.wait()
     end
