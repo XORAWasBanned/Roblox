@@ -21,15 +21,15 @@ getgenv().Atomizer = {
         },
         
         AutoReplay = true,
-        AutoEscape = true,
-        AutoOpenGates = true,
         AutoPickUpLoot = true,
         
         AutoVote = {
             StartRaidBoss = true,
             SkipBossCutscene = true,
-            StartInfinity = true,
-            SkipInfinityWave = true,
+            Infinity = {
+                Start = true,
+                SkipWave = true,
+            }
         },
         
         AutoPickCard = {
@@ -43,6 +43,11 @@ getgenv().Atomizer = {
                 ExtraLife = false,
                 IncreaseWalkSpeed = false,
             },
+        },
+        
+        Survival = {
+            AutoEscape = true,
+            AutoOpenGates = true,
         },
     },
     Lobby = {
@@ -578,11 +583,11 @@ local InitMatch = function()
             if MatchData.Gamemode == "Infinite" then
                 local Start, Skip = Client.HUD.Tabs.InfinitePanel.StartInfinite, Client.HUD.Tabs.InfinitePanel.SkipWave
                 
-                CheckVote("VoteStartInfinite", Start, Match.AutoVote.StartInfinity, function()
+                CheckVote("VoteStartInfinite", Start, Match.AutoVote.Infinity.Start, function()
                     Remotes.Events.Interact:FireServer("VoteSkipInfinite")
                 end)
                 
-                CheckVote("VoteSkipWave", Skip, Match.AutoVote.SkipInfinityWave, function()
+                CheckVote("VoteSkipWave", Skip, Match.AutoVote.Infinity.SkipWave, function()
                     Remotes.Events.Interact:FireServer("VoteSkipWave")
                 end)
             end
@@ -591,7 +596,7 @@ local InitMatch = function()
     
     local InitSurvivalHandler = function()
         WhileLoop(function()
-            if not (MatchData.Gamemode == "Survival" and Match.AutoEscape and Client.RootPart and not Client.Escaped) then return end
+            if not (MatchData.Gamemode == "Survival" and Match.Survival.AutoEscape and Client.RootPart and not Client.Escaped) then return end
             local Map = workspace:FindFirstChild("Map")
             local Objective = Map and Map:FindFirstChild("Objective")
             local Entries = Objective and Objective:FindFirstChild("Entries")
@@ -608,7 +613,7 @@ local InitMatch = function()
         end, 0.1)
         
         WhileLoop(function()
-            if not (MatchData.Gamemode == "Survival" and Match.AutoOpenGates) then return end
+            if not (MatchData.Gamemode == "Survival" and Match.Survival.AutoOpenGates) then return end
             for _, Hitbox in Services.Collection:GetTagged("GateHitbox") do
                 local Gate = Hitbox.Parent
                 if not Gate or Gate:GetAttribute("Opened") then continue end
