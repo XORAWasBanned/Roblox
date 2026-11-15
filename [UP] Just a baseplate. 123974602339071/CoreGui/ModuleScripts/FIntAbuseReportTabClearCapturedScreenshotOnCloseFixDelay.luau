@@ -1,0 +1,2 @@
+-- Path: CoreGui.RobloxGui.Modules.AbuseReportMenu.Flags.FIntAbuseReportTabClearCapturedScreenshotOnCloseFixDelay
+return game:DefineFastInt("AbuseReportTabClearCapturedScreenshotOnCloseFixDelay", 500)

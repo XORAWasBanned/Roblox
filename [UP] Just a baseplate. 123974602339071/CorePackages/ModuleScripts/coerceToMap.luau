@@ -1,0 +1,12 @@
+-- Path: CorePackages.Packages._Index.Collections.Collections.Map.coerceToMap
+local v1 = script.Parent
+local v2 = v1.Parent
+local v3 = v2.Parent
+local v_u_4 = require(v1.Map)
+local v_u_5 = require(v2.Object)
+local v_u_6 = require(v3.InstanceOf)
+require(v3.ES7Types)
+return function(p7) -- name: coerceToMap
+	-- upvalues: (copy) v_u_6, (copy) v_u_4, (copy) v_u_5
+	return v_u_6(p7, v_u_4) and p7 and p7 or v_u_4.new(v_u_5.entries(p7))
+end

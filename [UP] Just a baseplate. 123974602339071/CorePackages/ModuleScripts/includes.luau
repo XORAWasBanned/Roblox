@@ -1,0 +1,8 @@
+-- Path: CorePackages.Packages._Index.Collections.Collections.Array.includes
+local v1 = script.Parent.Parent.Parent
+require(v1.ES7Types)
+local v_u_2 = require(script.Parent.indexOf)
+return function(p3, p4, p5)
+	-- upvalues: (copy) v_u_2
+	return v_u_2(p3, p4, p5) ~= -1
+end

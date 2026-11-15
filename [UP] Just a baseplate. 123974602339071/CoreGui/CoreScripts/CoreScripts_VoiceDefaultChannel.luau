@@ -1,0 +1,2 @@
+-- Path: CoreGui.RobloxGui.CoreScripts/VoiceDefaultChannel
+-- missing argument #1 to 'base64_encode' (string expected)

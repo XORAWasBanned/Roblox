@@ -1,0 +1,22 @@
+-- Path: CorePackages.Packages._Index.MomentsCreationFlow.MomentsCreationFlow.Analytics.EventNames
+return {
+	["EditingFlowGalleryNoCapturesAvailable"] = "EditingFlowGalleryNoCapturesAvailable",
+	["EditingFlowGalleryItemSelected"] = "EditingFlowGalleryItemSelected",
+	["EditingFlowMusicButtonPressed"] = "EditingFlowMusicButtonPressed",
+	["EditingFlowMusicSelected"] = "EditingFlowMusicSelected",
+	["EditingFlowMusicBackButtonPressed"] = "EditingFlowMusicBackButtonPressed",
+	["EditingFlowMusicDoneButtonPressed"] = "EditingFlowMusicDoneButtonPressed",
+	["EditingFlowTextOverlayButtonPressed"] = "EditingFlowTextOverlayButtonPressed",
+	["EditingFlowTextOverlayBackButtonPressed"] = "EditingFlowTextOverlayBackButtonPressed",
+	["EditingFlowTextOverlayDoneButtonPressed"] = "EditingFlowTextOverlayDoneButtonPressed",
+	["EditingFlowTrimButtonPressed"] = "EditingFlowTrimButtonPressed",
+	["EditingFlowTrimBackButtonPressed"] = "EditingFlowTrimBackButtonPressed",
+	["EditingFlowTrimDoneButtonPressed"] = "EditingFlowTrimDoneButtonPressed",
+	["EditingFlowDescriptionEdited"] = "EditingFlowDescriptionEdited",
+	["EditingFlowNextButtonPressed"] = "EditingFlowNextButtonPressed",
+	["EditingFlowReturnButtonPressed"] = "EditingFlowReturnButtonPressed",
+	["MomentsEditingFlowContinueToEditButtonPressed"] = "MomentsEditingFlowContinueToEditButtonPressed",
+	["MomentsEditingFlowContinueToDescriptionButtonPressed"] = "MomentsEditingFlowContinueToDescriptionButtonPressed",
+	["MomentsEditingFlowPublished"] = "MomentsEditingFlowPublished",
+	["MomentsEditingFlowExited"] = "MomentsEditingFlowExited"
+}

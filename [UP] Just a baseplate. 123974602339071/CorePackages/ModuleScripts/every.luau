@@ -1,0 +1,44 @@
+-- Path: CorePackages.Packages._Index.Collections.Collections.Array.every
+-- https://lua.expert
+
+local __DEV__ = _G.__DEV__
+
+require(script.Parent.Parent.Parent.ES7Types)
+
+return function(p1, p2, p3) -- line: 27
+    -- upvalues: __DEV__ (copy)
+    if __DEV__ then
+        if typeof(p1) ~= "table" then
+            error(string.format("Array.every called on %s", (typeof(p1))))
+        end
+
+        if typeof(p2) ~= "function" then
+            error("callback is not a function")
+        end
+    end
+
+    local v1 = #p1
+    local n1 = 1
+
+    while true do
+        if not (n1 <= v1) then
+            return true
+        end
+
+        local v2 = p1[n1]
+
+        if v2 == nil then
+            n1 += 1
+            continue
+        end
+
+        if if p3 == nil then p2(v2, n1, p1) else p2(p3, v2, n1, p1) then
+            n1 += 1
+            continue
+        end
+
+        break
+    end
+
+    return false
+end

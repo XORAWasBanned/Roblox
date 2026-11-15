@@ -1,0 +1,31 @@
+-- Path: CorePackages.Packages._Index.LuaSocialLibrariesDeps.LuaSocialLibrariesDeps
+local v1 = script.Parent
+return {
+	["CollisionMatchers"] = require(v1.CollisionMatchers),
+	["GenericPagination"] = require(v1.GenericPagination),
+	["httpRequest"] = require(v1.httpRequest),
+	["llama"] = require(v1.llama),
+	["Mock"] = require(v1.Mock),
+	["NetworkingAccountInformation"] = require(v1.NetworkingAccountInformation),
+	["NetworkingAccountSettings"] = require(v1.NetworkingAccountSettings),
+	["NetworkingAliases"] = require(v1.NetworkingAliases),
+	["NetworkingBlocking"] = require(v1.NetworkingBlocking),
+	["NetworkingCall"] = require(v1.NetworkingCall),
+	["NetworkingChat"] = require(v1.NetworkingChat),
+	["NetworkingContacts"] = require(v1.NetworkingContacts),
+	["NetworkingCurrentlyWearing"] = require(v1.NetworkingCurrentlyWearing),
+	["NetworkingGames"] = require(v1.NetworkingGames),
+	["NetworkingPremiumFeatures"] = require(v1.NetworkingPremiumFeatures),
+	["NetworkingPresence"] = require(v1.NetworkingPresence),
+	["NetworkingUsers"] = require(v1.NetworkingUsers),
+	["NetworkingUserSettings"] = require(v1.NetworkingUserSettings),
+	["RoactFitComponents"] = require(v1.RoactFitComponents),
+	["RoduxAliases"] = require(v1.RoduxAliases),
+	["RoduxCall"] = require(v1.RoduxCall),
+	["RoduxGames"] = require(v1.RoduxGames),
+	["RoduxNetworking"] = require(v1.RoduxNetworking),
+	["RoduxPresence"] = require(v1.RoduxPresence),
+	["RoduxUserPermissions"] = require(v1.RoduxUserPermissions),
+	["RoduxUsers"] = require(v1.RoduxUsers),
+	["SocialLibraries"] = require(v1.SocialLibraries)
+}

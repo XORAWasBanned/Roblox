@@ -1,0 +1,2 @@
+-- Path: CoreGui.RobloxGui.Modules.VoiceChat.Flags.FFlagVoiceVolumeControlsEnableNotAudibleVoiceChatVolumeToast
+return game:DefineFastFlag("VoiceVolumeControlsEnableNotAudibleVoiceChatVolumeToast", false)

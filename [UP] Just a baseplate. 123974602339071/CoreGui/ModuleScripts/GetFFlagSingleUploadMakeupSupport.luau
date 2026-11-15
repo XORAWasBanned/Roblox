@@ -1,0 +1,5 @@
+-- Path: CoreGui.RobloxGui.Modules.PublishAssetPrompt.Flags.GetFFlagSingleUploadMakeupSupport
+game:DefineFastFlag("SingleUploadMakeupSupport5", false)
+return function()
+	return game:GetFastFlag("SingleUploadMakeupSupport5")
+end

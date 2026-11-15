@@ -1,0 +1,2 @@
+-- Path: CoreGui.RobloxGui.Modules.Settings.Flags.FFlagVoiceVolumeControlsEnableVoiceChatVolumeSlider
+return game:GetEngineFeature("VoiceVolumeControlsApplyGameSettingsVoiceVolume")

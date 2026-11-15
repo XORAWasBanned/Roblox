@@ -1,0 +1,8 @@
+-- Path: CorePackages.Packages._Index.Collections.Collections.Map
+local v1 = script.Parent.Parent
+require(v1.ES7Types)
+return {
+	["Map"] = require(script.Map),
+	["coerceToMap"] = require(script.coerceToMap),
+	["coerceToTable"] = require(script.coerceToTable)
+}

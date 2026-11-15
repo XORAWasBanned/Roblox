@@ -1,0 +1,7 @@
+-- Path: CoreGui.RobloxGui.Modules.DevConsole.Actions.ClientMemoryUpdateSearchFilter
+return require(script.Parent.Parent.Action)("ClientMemoryUpdateSearchFilter", function(p1, p2)
+	return {
+		["searchTerm"] = p1,
+		["filterTypes"] = p2
+	}
+end)

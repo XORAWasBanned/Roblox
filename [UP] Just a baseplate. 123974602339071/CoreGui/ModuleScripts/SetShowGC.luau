@@ -1,0 +1,7 @@
+-- Path: CoreGui.RobloxGui.Modules.DevConsole.Components.ScriptProfiler.Actions.SetShowGC
+return require(script.Parent.Parent.Parent.Parent.Action)("ScriptProfiler" .. script.Name, function(p1, p2)
+	return {
+		["isClient"] = p1,
+		["showGC"] = p2
+	}
+end)

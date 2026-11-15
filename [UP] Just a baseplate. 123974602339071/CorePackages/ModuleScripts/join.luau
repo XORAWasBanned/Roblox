@@ -1,0 +1,15 @@
+-- Path: CorePackages.Packages._Index.Collections.Collections.Array.join
+local v1 = script.Parent
+local v2 = v1.Parent.Parent
+require(v2.ES7Types)
+local v_u_3 = require(v1.map)
+return function(p4, p5)
+	-- upvalues: (copy) v_u_3
+	if #p4 == 0 then
+		return ""
+	end
+	local v7 = v_u_3(p4, function(p6)
+		return tostring(p6)
+	end)
+	return table.concat(v7, p5 or ",")
+end

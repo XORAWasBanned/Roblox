@@ -1,0 +1,7 @@
+-- Path: CoreGui.RobloxGui.Modules.DevConsole.Actions.DebugVisualizationsUpdateSearchFilter
+return require(script.Parent.Parent.Action)("DebugVisualizationsUpdateSearchFilter", function(p1, p2)
+	return {
+		["searchTerm"] = p1,
+		["filterTypes"] = p2
+	}
+end)

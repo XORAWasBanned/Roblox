@@ -1,0 +1,33 @@
+-- Path: CorePackages.Packages._Index.Merge.Merge.typedefs-mergers
+local v1 = script.Parent.Parent
+local v2 = require(v1.LuauPolyfill).Object
+local v3 = {}
+local v4 = require(script.arguments)
+v2.assign(v3, v4)
+local v5 = require(script.directives)
+v2.assign(v3, v5)
+local v6 = require(script["enum-values"])
+v2.assign(v3, v6)
+local v7 = require(script.enum)
+v2.assign(v3, v7)
+local v8 = require(script.fields)
+v2.assign(v3, v8)
+local v9 = require(script["input-type"])
+v2.assign(v3, v9)
+local v10 = require(script.interface)
+v2.assign(v3, v10)
+local v11 = require(script["merge-named-type-array"])
+v2.assign(v3, v11)
+local v12 = require(script["merge-nodes"])
+v2.assign(v3, v12)
+local v13 = require(script["merge-typedefs"])
+v2.assign(v3, v13)
+local v14 = require(script.scalar)
+v2.assign(v3, v14)
+local v15 = require(script.type)
+v2.assign(v3, v15)
+local v16 = require(script.union)
+v2.assign(v3, v16)
+local v17 = require(script.utils)
+v2.assign(v3, v17)
+return v3
