@@ -1,33 +1,36 @@
-if BYPASSED_ADONIS then return end
+local Environment, RequiredFunctions, Missing = getfenv(), {"getgenv", "hookfunction", "checkcaller", "getcallingscript", "getgc"}
+
+for _, Name in RequiredFunctions do
+    if type(Environment[Name]) == "function" then continue end
+    warn("Missing Function: " .. Name)
+    Missing = true
+end
+
+if Missing or getgenv().BYPASSED_ADONIS then return end
 getgenv().ADONIS_BYPASS_DEBUG_MODE = false
 
-local ScriptContext = game:service("ScriptContext")
-local LocalPlayer = game:service("Players").LocalPlayer
-
-ScriptContext:SetTimeout(1)
+game:GetService("ScriptContext"):SetTimeout(1)
 
 local function StringArguments(...)
     local Arguments = {...}
-    for Index, Value in Arguments do
-        Arguments[Index] = tostring(Value)
-    end
+    for Index, Value in Arguments do Arguments[Index] = tostring(Value) end
     return Arguments
 end
 
-local Kick; Kick = hookfunction(LocalPlayer.Kick, function(...)
+local Kick; Kick = hookfunction(game:GetService("Players").LocalPlayer.Kick, function(...)
     if checkcaller() or tostring(getcallingscript()) ~= "ClientMover" then return Kick(...) end
-    if ADONIS_BYPASS_DEBUG_MODE then
+    if getgenv().ADONIS_BYPASS_DEBUG_MODE then
         warn("\n------------------------------")
         warn("DEBUG: LocalPlayer Kick function has been called, arguments:", table.concat(StringArguments(...), ", ")) 
         warn("------------------------------\n")
     end
 end)
 
-if ADONIS_BYPASS_DEBUG_MODE and Kick then warn("Debugging: Hooked Kick function!") end
+if getgenv().ADONIS_BYPASS_DEBUG_MODE and Kick then print("Debugging: Hooked Kick function!") end
 
 local DebugInfo; DebugInfo = hookfunction(debug.info, function(...)
     if checkcaller() or tostring(getcallingscript()) ~= "ClientMover" or select(2, ...) ~= "slanf" then return DebugInfo(...) end
-    if ADONIS_BYPASS_DEBUG_MODE then
+    if getgenv().ADONIS_BYPASS_DEBUG_MODE then
         warn("\n------------------------------")
         warn("DEBUG: debug.info function has been called, arguments:", table.concat(StringArguments(...), ", ")) 
         warn("------------------------------\n")
@@ -35,32 +38,32 @@ local DebugInfo; DebugInfo = hookfunction(debug.info, function(...)
     return coroutine.yield()
 end)
 
-if ADONIS_BYPASS_DEBUG_MODE and DebugInfo then warn("Debugging: Hooked debug.info function!") end
+if getgenv().ADONIS_BYPASS_DEBUG_MODE and DebugInfo then print("Debugging: Hooked debug.info function!") end
 
 for _, Collected in getgc(true) do
-    if type(Collected) ~= "table" then continue end
+    if typeof(Collected) ~= "table" then continue end
     local Detected, Kill = rawget(Collected, "Detected"), rawget(Collected, "Kill")
     
-    if type(Kill) == "function" and debug.info(Kill, "s") == ".Client.Client" then
+    if typeof(Kill) == "function" and debug.info(Kill, "s") == ".Client.Client" then
         hookfunction(Kill, function(Info) 
-            if ADONIS_BYPASS_DEBUG_MODE then 
+            if getgenv().ADONIS_BYPASS_DEBUG_MODE then 
                 warn("\n------------------------------")
                 warn("DEBUG: Kill function has been called, Information argument:", tostring(Info))
                 warn("------------------------------\n")
             end 
         end)
-        if ADONIS_BYPASS_DEBUG_MODE then warn("Debugging: Hooked Kill function!") end
+        if getgenv().ADONIS_BYPASS_DEBUG_MODE then print("Debugging: Hooked Kill function!") end
     end
     
-    if type(Detected) == "function" and debug.info(Detected, "s") == ".Client.Core.Anti" then
+    if typeof(Detected) == "function" and debug.info(Detected, "s") == ".Client.Core.Anti" then
         hookfunction(Detected, function(Action, Info, NoCrash) 
-            if ADONIS_BYPASS_DEBUG_MODE then
+            if getgenv().ADONIS_BYPASS_DEBUG_MODE then
                 warn("\n------------------------------")
                 warn("DEBUG: Detected function has been called, Action argument:", tostring(Action), "Information argument:", tostring(Info), "No Crash argument:", tostring(NoCrash))
                 warn("------------------------------\n")
             end
         end)
-        if ADONIS_BYPASS_DEBUG_MODE then warn("Debugging: Hooked Detected function!") end
+        if getgenv().ADONIS_BYPASS_DEBUG_MODE then print("Debugging: Hooked Detected function!") end
     end
 end
 
