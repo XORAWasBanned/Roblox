@@ -37,10 +37,9 @@ if next(Getters) and next(Runners) then
     loadstring(Code)()
     for Actor in Actors do
         for Runner in Runners do
-            print(Actor)
-            local Ok, Err = pcall(Runner, Actor, Code)
-            if Ok then break end
-            warn(Err)
+            local Success, Result = pcall(Runner, Actor, Code)
+            if Success then break end
+            warn(Result)
         end
     end
     getgenv()["BYPASSED TIMEBOMB DUELS ANTI-CHEAT"] = true
