@@ -15,12 +15,14 @@ local ParallelLuaUOnMainThread, Code = getfflag("DebugRunParallelLuaOnMainThread
     end
 ]]
 
-if ParallelLuaUOnMainThread ~= "true" then
+if ParallelLuaUOnMainThread == "false" then
     setfflag("DebugRunParallelLuaOnMainThread", "true")
     queue_on_teleport(Code)
     game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, game:GetService("Players").LocalPlayer)
 elseif ParallelLuaUOnMainThread == "true" then
     loadstring(Code)()
+else
+    game:GetService("Players").LocalPlayer:Kick("DebugRunParallelLuaOnMainThread FFlag Doesn't Exist No More :(")
 end
 
 getgenv()["BYPASSED TIMEBOMB DUELS ANTI-CHEAT"] = true
