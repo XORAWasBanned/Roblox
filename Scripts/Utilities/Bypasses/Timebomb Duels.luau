@@ -1,39 +1,47 @@
 local Environment, Missing = getfenv(), false
 
 for _, Name in {"getgenv", "loadstring", "getgc", "hookfunction", "islclosure", "isexecutorclosure"} do
-    if typeof(Environment[Name]) ~= "function" then warn("Missing Function: " .. Name) Missing = true end
+    if typeof(Environment[Name]) ~= "function" then
+        Missing = true
+        warn("Missing Function: " .. Name)
+    end
 end
 
 if Missing or getgenv()["BYPASSED TIMEBOMB DUELS ANTI-CHEAT"] then return end
 
-local Code, GetterNames, Getters, Runners, Seen, Actors = [[
+local Whitelist = {getactors = true, getallactors = true, getdeletedactors = true, getdestroyedactors = true}
+
+local Code, Getters, Runners, Actors = [[
     for _, Collected in getgc() do
         if not (typeof(Collected) == "function" and debug.info(Collected, "s"):find("ReplicatedFirst") and islclosure(Collected) and not isexecutorclosure(Collected)) then continue end
         hookfunction(Collected, function() end)
     end
-]], {getactors = true, getallactors = true, getdeletedactors = true, getdestroyedactors = true}, {}, {}, {}, {}
+]], {}, {}, {}
 
 for _, Table in {getgenv(), Environment} do
     for Name, Value in Table do
-        if typeof(Name) ~= "string" or typeof(Value) ~= "function" or Seen[Value] then continue end
+        if typeof(Name) ~= "string" or typeof(Value) ~= "function" then continue end
         local Clean = Name:lower():gsub("_", "")
-        local List = GetterNames[Clean] and Getters or Clean == "runonactor" and Runners
-        if List then Seen[Value] = true table.insert(List, Value) end
+        if Whitelist[Clean] then Getters[Value] = true
+        elseif Clean == "runonactor" then Runners[Value] = true end
     end
 end
 
-for _, Getter in Getters do
+for Getter in Getters do
     local Success, Result = pcall(Getter)
     if not Success or typeof(Result) ~= "table" then continue end
-    for _, Actor in Result do
-        if typeof(Actor) == "Instance" and not Seen[Actor] then Seen[Actor] = true table.insert(Actors, Actor) end
-    end
+    for _, Actor in Result do Actors[Actor] = true end
 end
 
-if #Getters > 0 and #Runners > 0 then
+if next(Getters) and next(Runners) then
     loadstring(Code)()
-    for _, Actor in Actors do
-        for _, Runner in Runners do if pcall(Runner, Actor, Code) then break end end
+    for Actor in Actors do
+        for Runner in Runners do
+            print(Actor)
+            local Ok, Err = pcall(Runner, Actor, Code)
+            if Ok then break end
+            warn(Err)
+        end
     end
     getgenv()["BYPASSED TIMEBOMB DUELS ANTI-CHEAT"] = true
     return
