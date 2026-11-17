@@ -6,7 +6,7 @@ end
 
 if Missing or getgenv()["BYPASSED TIMEBOMB DUELS ANTI-CHEAT"] then return end
 
-local Code, GetterNames = [[
+local Code, GetterNames, Getters, Runners, Seen, Actors = [[
     for _, Collected in getgc() do
         if not (typeof(Collected) == "function" and debug.info(Collected, "s"):find("ReplicatedFirst") and islclosure(Collected) and not isexecutorclosure(Collected)) then continue end
         hookfunction(Collected, function() end)
