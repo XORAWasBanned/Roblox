@@ -1,4 +1,4 @@
-local Environment, RequiredFunctions, Missing = getfenv(), {"getgenv", "getfflag", "setfflag", "loadstring", "hookfunction", "islclosure", "isexecutorclosure"}
+local Environment, RequiredFunctions, Missing = getfenv(), {"getgenv", "getfflag", "setfflag", "loadstring", "getgc", "hookfunction", "islclosure", "isexecutorclosure"}
 
 for _, Name in RequiredFunctions do
     if typeof(Environment[Name]) == "function" then continue end
